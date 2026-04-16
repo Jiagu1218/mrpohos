@@ -1,5 +1,6 @@
 import testNapi from 'libentry.so';
 import { image } from '@kit.ImageKit';
+import { picker, fileUri, fileIo as fs } from '@kit.CoreFileKit';
 
 const MR_KEY_PRESS = 0;
 const MR_KEY_RELEASE = 1;
@@ -18,6 +19,7 @@ struct Index {
   private timerId: number = -1;
   private initialized: boolean = false;
   @State private framePixelMap: image.PixelMap | undefined = undefined;
+  @State private importStatus: string = '未导入 MRP';
 
   build() {
     Column() {
@@ -50,6 +52,22 @@ struct Index {
       .justifyContent(FlexAlign.Center)
       .width('100%')
       .layoutWeight(1)
+
+      Row() {
+        Button('导入MRP')
+          .width(120)
+          .height(40)
+          .onClick(async () => {
+            await this.pickAndImportMrp();
+          })
+        Text(this.importStatus)
+          .fontSize(14)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.SpaceEvenly)
+      .padding(5)
 
       Row() {
         Button('←')
@@ -232,5 +250,49 @@ struct Index {
       clearInterval(this.timerId);
       this.timerId = -1;
     }
+  }
+
+  private async pickAndImportMrp() {
+    const sandboxPath = AppStorage.get<string>('sandboxPath') || '/data/storage/el2/base';
+    const targetDir = `${sandboxPath}/mythroad`;
+    const selectOptions = new picker.DocumentSelectOptions();
+    selectOptions.maxSelectNumber = 1;
+    selectOptions.fileSuffixFilters = ['.mrp'];
+
+    try {
+      const documentViewPicker = new picker.DocumentViewPicker();
+      const uris = await documentViewPicker.select(selectOptions);
+      if (!uris || uris.length === 0) {
+        this.importStatus = '已取消选择';
+        return;
+      }
+
+      const sourcePath = new fileUri.FileUri(uris[0]).path;
+      const fileName = this.getFileName(sourcePath);
+      if (!fileName.toLowerCase().endsWith('.mrp')) {
+        this.importStatus = '仅支持 .mrp 文件';
+        return;
+      }
+
+      if (!fs.accessSync(targetDir)) {
+        fs.mkdirSync(targetDir, true);
+      }
+
+      const destPath = `${targetDir}/${fileName}`;
+      fs.copyFileSync(sourcePath, destPath);
+      this.importStatus = `导入成功: ${fileName}`;
+      console.info(`Imported MRP: ${sourcePath} -> ${destPath}`);
+    } catch (err) {
+      this.importStatus = '导入失败';
+      console.error(`Import MRP failed: ${JSON.stringify(err)}`);
+    }
+  }
+
+  private getFileName(path: string): string {
+    const idx = path.lastIndexOf('/');
+    if (idx < 0) {
+      return path;
+    }
+    return path.substring(idx + 1);
   }
 }

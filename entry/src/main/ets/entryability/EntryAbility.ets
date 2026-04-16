@@ -15,12 +15,21 @@ async function copyRawfileToSandbox(context: Context, sandboxPath: string) {
   let files = [
     'cfunction.ext',
     'mythroad/dsm_gm.mrp',
+    'mythroad/mpc.mrp',
+    'mythroad/ydqtwo.mrp',
     'mythroad/system/gb12.uc2',
     'mythroad/system/gb16.uc2',
+    'mythroad/plugins/flaengine.mrp',
+    'mythroad/plugins/netpay.mrp',
+    'mythroad/plugins/ose/brwcore.mrp',
   ];
 
   for (let file of files) {
     let destPath = sandboxPath + '/' + file;
+    let parentDir = destPath.substring(0, destPath.lastIndexOf('/'));
+    if (!fs.accessSync(parentDir)) {
+      fs.mkdirSync(parentDir, true);
+    }
     if (fs.accessSync(destPath)) {
       hilog.info(DOMAIN, TAG, 'Already exists: %{public}s', file);
       continue;
