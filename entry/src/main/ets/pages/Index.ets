@@ -108,20 +108,26 @@ struct Index {
   private initEmulator() {
     if (this.initialized) return;
 
+    let rawfilesReady = AppStorage.get<boolean>('rawfilesReady') || false;
+    if (!rawfilesReady) {
+      setTimeout((): void => { this.initEmulator(); }, 100);
+      return;
+    }
+
     let sandboxPath = AppStorage.get<string>('sandboxPath') || '/data/storage/el2/base';
 
-    testNapi.onDraw((x: number, y: number, w: number, h: number, pixels: ArrayBuffer) => {
+    testNapi.onDraw((x: number, y: number, w: number, h: number, pixels: ArrayBuffer): void => {
       this.drawFrame(x, y, w, h, pixels);
     });
 
-    testNapi.onTimerStart((t: number) => {
+    testNapi.onTimerStart((t: number): void => {
       this.stopTimer();
       this.timerId = setInterval(() => {
         testNapi.timer();
       }, t);
     });
 
-    testNapi.onTimerStop(() => {
+    testNapi.onTimerStop((): void => {
       this.stopTimer();
     });
 

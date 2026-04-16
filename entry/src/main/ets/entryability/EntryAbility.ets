@@ -7,8 +7,10 @@ const DOMAIN = 0x0000;
 const TAG = 'EntryAbility';
 
 async function copyRawfileToSandbox(context: Context, sandboxPath: string) {
-  let resourceDir = sandboxPath;
-  fs.mkdirSync(resourceDir + '/mythroad/system', true);
+  let mythroadDir = sandboxPath + '/mythroad/system';
+  if (!fs.accessSync(sandboxPath + '/mythroad')) {
+    fs.mkdirSync(mythroadDir, true);
+  }
 
   let files = [
     'cfunction.ext',
@@ -18,15 +20,19 @@ async function copyRawfileToSandbox(context: Context, sandboxPath: string) {
   ];
 
   for (let file of files) {
-    let destPath = resourceDir + '/' + file;
-    if (!fs.accessSync(destPath)) {
-      try {
-        let srcPath = context.resourceDir + '/' + file;
-        fs.copyFileSync(srcPath, destPath);
-        hilog.info(DOMAIN, TAG, 'Copied rawfile: %{public}s', file);
-      } catch (err) {
-        hilog.error(DOMAIN, TAG, 'Failed to copy %{public}s: %{public}s', file, JSON.stringify(err));
-      }
+    let destPath = sandboxPath + '/' + file;
+    if (fs.accessSync(destPath)) {
+      hilog.info(DOMAIN, TAG, 'Already exists: %{public}s', file);
+      continue;
+    }
+    try {
+      let content = await context.resourceManager.getRawFileContent(file);
+      let fd = fs.openSync(destPath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
+      fs.writeSync(fd.fd, content.buffer);
+      fs.closeSync(fd);
+      hilog.info(DOMAIN, TAG, 'Copied rawfile: %{public}s', file);
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, 'Failed to copy %{public}s: %{public}s', file, JSON.stringify(err));
     }
   }
 }
@@ -43,9 +49,16 @@ export default class EntryAbility extends UIAbility {
     let sandboxPath = this.context.filesDir;
     AppStorage.SetOrCreate<string>('sandboxPath', sandboxPath);
 
-    copyRawfileToSandbox(this.context, sandboxPath).catch((err: Error) => {
-      hilog.error(DOMAIN, TAG, 'copyRawfileToSandbox failed: %{public}s', err.message);
-    });
+    this.copyRawfiles(sandboxPath);
+  }
+
+  private async copyRawfiles(sandboxPath: string) {
+    try {
+      await copyRawfileToSandbox(this.context, sandboxPath);
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, 'copyRawfileToSandbox failed: %{public}s', JSON.stringify(err));
+    }
+    AppStorage.SetOrCreate<boolean>('rawfilesReady', true);
   }
 
   onDestroy(): void {

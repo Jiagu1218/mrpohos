@@ -122,7 +122,7 @@ static napi_value NapiInit(napi_env env, napi_callback_info info) {
 
     vmrp_setCallbacks(onDrawCallback, onTimerStartCallback, onTimerStopCallback);
 
-    int32_t ret = startVmrp();
+    int32_t ret = initVmrpAndLoad();
     napi_value result;
     napi_create_int32(env, ret, &result);
     return result;
