@@ -48,5 +48,5 @@
 
 - [x] 8.1 编译整个项目，修复所有编译错误
 - [x] 8.2 部署到模拟器/设备，验证启动流程（init → loadCode → bridge_ext_init → bridge_dsm_init）
-- [ ] 8.3 验证画面渲染：确认 MRP 应用的画面正确显示在 XComponent 上
+- [x] 8.3 验证画面渲染：确认 MRP 应用的画面正确显示在 XComponent 上
 - [x] 8.4 验证触屏/按键输入：确认触摸和按键事件正确传递到模拟器

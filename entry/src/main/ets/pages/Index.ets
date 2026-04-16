@@ -1,4 +1,5 @@
 import testNapi from 'libentry.so';
+import { image } from '@kit.ImageKit';
 
 const MR_KEY_PRESS = 0;
 const MR_KEY_RELEASE = 1;
@@ -16,23 +17,35 @@ struct Index {
   private xComponentHeight: number = 320;
   private timerId: number = -1;
   private initialized: boolean = false;
+  @State private framePixelMap: image.PixelMap | undefined = undefined;
 
   build() {
     Column() {
       Row() {
-        XComponent({
-          id: 'mrpXComponent',
-          type: XComponentType.SURFACE,
-          libraryname: 'entry'
+        Stack() {
+          XComponent({
+            id: 'mrpXComponent',
+            type: XComponentType.SURFACE,
+            libraryname: 'entry'
+          })
+            .width(this.xComponentWidth)
+            .height(this.xComponentHeight)
+            .onLoad(() => {
+              this.initEmulator();
+            })
+
+          if (this.framePixelMap) {
+            Image(this.framePixelMap)
+              .width(this.xComponentWidth)
+              .height(this.xComponentHeight)
+              .interpolation(ImageInterpolation.None)
+          }
+        }
+        .width(this.xComponentWidth)
+        .height(this.xComponentHeight)
+        .onTouch((event: TouchEvent) => {
+          this.handleTouch(event);
         })
-          .width(this.xComponentWidth)
-          .height(this.xComponentHeight)
-          .onLoad(() => {
-            this.initEmulator();
-          })
-          .onTouch((event: TouchEvent) => {
-            this.handleTouch(event);
-          })
       }
       .justifyContent(FlexAlign.Center)
       .width('100%')
@@ -143,7 +156,49 @@ struct Index {
   }
 
   private drawFrame(x: number, y: number, w: number, h: number, pixels: ArrayBuffer) {
-    // Drawing is handled by XComponent surface - pixels are available for future use
+    if (w <= 0 || h <= 0) {
+      return;
+    }
+
+    const pixelCount = w * h;
+    const src = new Uint16Array(pixels);
+    const rgba = new Uint8Array(pixelCount * 4);
+
+    for (let i = 0; i < pixelCount; i++) {
+      const c = src[i];
+      const r5 = (c >> 11) & 0x1f;
+      const g6 = (c >> 5) & 0x3f;
+      const b5 = c & 0x1f;
+
+      const r8 = (r5 << 3) | (r5 >> 2);
+      const g8 = (g6 << 2) | (g6 >> 4);
+      const b8 = (b5 << 3) | (b5 >> 2);
+
+      const base = i * 4;
+      rgba[base] = r8;
+      rgba[base + 1] = g8;
+      rgba[base + 2] = b8;
+      rgba[base + 3] = 0xff;
+    }
+
+    const opts: image.InitializationOptions = {
+      editable: false,
+      srcPixelFormat: image.PixelMapFormat.RGBA_8888,
+      pixelFormat: image.PixelMapFormat.RGBA_8888,
+      size: { width: w, height: h },
+      alphaType: image.AlphaType.OPAQUE
+    };
+
+    try {
+      const next = image.createPixelMapSync(rgba.buffer, opts);
+      if (this.framePixelMap) {
+        this.framePixelMap.release();
+      }
+      this.framePixelMap = next;
+    } catch (err) {
+      console.error(`drawFrame pixelmap error: ${JSON.stringify(err)}`);
+    }
+
     console.info(`drawFrame: x=${x}, y=${y}, w=${w}, h=${h}`);
   }
 
