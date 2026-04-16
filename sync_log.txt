@@ -1,0 +1,16 @@
+--- ohpm install output ---
+install completed in 0s 315ms
+
+(node:26668) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+
+--- build init output ---
+> D:\Program Files\Huawei\DevEco Studio\tools\node\node.exe D:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.js --sync -p product=default --analyze=normal --parallel --incremental --no-daemon
+
+> hvigor Finished :entry:init... after 1 ms 
+> hvigor Finished ::init... after 1 ms 
+
+
+Process finished with exit code 0
+

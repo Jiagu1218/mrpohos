@@ -1,0 +1,313 @@
+=== Clean Output ===
+> D:\Program Files\Huawei\DevEco Studio\tools\node\node.exe D:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.js clean --no-daemon
+
+> hvigor Finished :entry:clean... after 198 ms 
+> hvigor Finished ::clean... after 1 ms 
+> hvigor BUILD SUCCESSFUL in 9 s 132 ms 
+
+
+Process finished with exit code 0
+
+=== Build Output ===
+> D:\Program Files\Huawei\DevEco Studio\tools\node\node.exe D:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.js --mode module -p module=entry@default assembleHap -p buildMode=debug -p debuggable=true -p debugLine=false --no-daemon
+
+> hvigor UP-TO-DATE :entry:default@PreBuild...  
+> hvigor Finished :entry:default@CreateModuleInfo... after 7 ms 
+> hvigor Finished :entry:default@GenerateMetadata... after 186 ms 
+> hvigor Finished :entry:default@ConfigureCmake... after 93 ms 
+> hvigor Finished :entry:default@MergeProfile... after 210 ms 
+> hvigor Finished :entry:default@CreateBuildProfile... after 183 ms 
+> hvigor Finished :entry:default@PreCheckSyscap... after 1 ms 
+> hvigor Finished :entry:default@ProcessIntegratedHsp... after 12 ms 
+> hvigor Finished :entry:default@MakePackInfo... after 546 ms 
+> hvigor Finished :entry:default@SyscapTransform... after 184 ms 
+> hvigor Finished :entry:default@BuildNativeWithCmake... after 7 s 819 ms 
+> hvigor Finished :entry:default@GeneratePkgContextInfo... after 246 ms 
+> hvigor Finished :entry:default@ProcessProfile... after 2 s 752 ms 
+> hvigor Finished :entry:default@ProcessRouterMap... after 7 ms 
+> hvigor Finished :entry:default@ProcessShareConfig... after 9 ms 
+> hvigor Finished :entry:default@ProcessStartupConfig... after 8 ms 
+> hvigor Finished :entry:default@ProcessResource... after 147 ms 
+> hvigor Finished :entry:default@GenerateLoaderJson... after 28 ms 
+> hvigor ERROR: Failed :entry:default@BuildNativeWithNinja... 
+> hvigor ERROR: Exceptions happened while executing D:\Program Files\Huawei\DevEco Studio\sdk\default\openharmony\native\build-tools\cmake\bin\ninja.exe -C D:\tmp\mrpohos\entry\.cxx\default\default\debug\arm64-v8a.
+ninja: Entering directory `D:\tmp\mrpohos\entry\.cxx\default\default\debug\arm64-v8a'
+[1/79] Building C object CMakeFiles/entry.dir/vmrp/memory.c.o
+clang: warning: argument unused during compilation: '--gcc-toolchain=D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng' [-Wunused-command-line-argument]
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/memory.c:31:28: warning: cast to smaller integer type 'uint32' (aka 'unsigned int') from 'char *' [-Wpointer-to-int-cast]
+    LG_mem_base = (char *)((uint32)(Origin_LG_mem_base + 3) & (~3));
+                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/memory.c:31:19: warning: cast to 'char *' from smaller integer type 'unsigned int' [-Wint-to-pointer-cast]
+
+    LG_mem_base = (char *)((uint32)(Origin_LG_mem_base + 3) & (~3));
+
+                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+2 warnings generated.
+
+[2/79] Building C object CMakeFiles/entry.dir/vmrp/bridge.c.o
+clang: warning: argument unused during compilation: '--gcc-toolchain=D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng' [-Wunused-command-line-argument]
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:88:15: warning: cast to smaller integer type 'uint32_t' (aka 'unsigned int') from 'void *' [-Wvoid-pointer-to-int-cast]
+    SET_RET_V((uint32_t)NULL);
+    ~~~~~~~~~~^~~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:33:23: note: expanded from macro 'SET_RET_V'
+        uint32_t _v = ret;                    \
+                      ^~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:107:15: warning: cast to smaller integer type 'uint32_t' (aka 'unsigned int') from 'void *' [-Wvoid-pointer-to-int-cast]
+    SET_RET_V((uint32_t)memcpy(getMrpMemPtr(dst), getMrpMemPtr(src), n));
+              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:33:23: note: expanded from macro 'SET_RET_V'
+        uint32_t _v = ret;                    \
+                      ^~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:116:15: warning: cast to smaller integer type 'uint32_t' (aka 'unsigned int') from 'void *' [-Wvoid-pointer-to-int-cast]
+    SET_RET_V((uint32_t)memset(getMrpMemPtr(dst), value, n));
+              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:33:23: note: expanded from macro 'SET_RET_V'
+        uint32_t _v = ret;                    \
+                      ^~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:404:19: warning: cast to smaller integer type 'uint32_t' (aka 'unsigned int') from 'void *' [-Wvoid-pointer-to-int-cast]
+        SET_RET_V((uint32_t)NULL);
+        ~~~~~~~~~~^~~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:33:23: note: expanded from macro 'SET_RET_V'
+        uint32_t _v = ret;                    \
+                      ^~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:431:34: warning: cast to 'void *' from smaller integer type 'uint32_t' (aka 'unsigned int') [-Wint-to-void-pointer-cast]
+    SET_RET_V(my_initNetwork(uc, (void *)cb, getMrpMemPtr(mode), (void *)userData));
+                                 ^~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:33:23: note: expanded from macro 'SET_RET_V'
+        uint32_t _v = ret;                    \
+                      ^~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:431:66: warning: cast to 'void *' from smaller integer type 'uint32_t' (aka 'unsigned int') [-Wint-to-void-pointer-cast]
+    SET_RET_V(my_initNetwork(uc, (void *)cb, getMrpMemPtr(mode), (void *)userData));
+                                                                 ^~~~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:33:23: note: expanded from macro 'SET_RET_V'
+        uint32_t _v = ret;                    \
+                      ^~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:476:56: warning: cast to 'void *' from smaller integer type 'uint32_t' (aka 'unsigned int') [-Wint-to-void-pointer-cast]
+    SET_RET_V(my_getHostByName(uc, getMrpMemPtr(name), (void *)cb, (void *)userData));
+                                                       ^~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:33:23: note: expanded from macro 'SET_RET_V'
+        uint32_t _v = ret;                    \
+                      ^~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:476:68: warning: cast to 'void *' from smaller integer type 'uint32_t' (aka 'unsigned int') [-Wint-to-void-pointer-cast]
+    SET_RET_V(my_getHostByName(uc, getMrpMemPtr(name), (void *)cb, (void *)userData));
+                                                                   ^~~~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:33:23: note: expanded from macro 'SET_RET_V'
+        uint32_t _v = ret;                    \
+                      ^~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:1257:36: warning: cast to 'char *' from smaller integer type 'uint32_t' (aka 'unsigned int') [-Wint-to-pointer-cast]
+    mr_start_dsm_param->filename = (char *)copyStrToMrp(filename);
+                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:1258:31: warning: cast to 'char *' from smaller integer type 'uint32_t' (aka 'unsigned int') [-Wint-to-pointer-cast]
+    mr_start_dsm_param->ext = (char *)copyStrToMrp(ext);
+                              ^~~~~~~~~~~~~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:1259:41: warning: cast to 'char *' from smaller integer type 'uint32_t' (aka 'unsigned int') [-Wint-to-pointer-cast]
+    mr_start_dsm_param->entry = entry ? (char *)copyStrToMrp(entry) : NULL;
+                                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:1263:29: warning: cast to smaller integer type 'uint32_t' (aka 'unsigned int') from 'char *' [-Wpointer-to-int-cast]
+    my_freeExt(getMrpMemPtr((uint32_t)mr_start_dsm_param->filename));
+                            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:1266:29: warning: cast to smaller integer type 'uint32_t' (aka 'unsigned int') from 'char *' [-Wpointer-to-int-cast]
+    my_freeExt(getMrpMemPtr((uint32_t)mr_start_dsm_param->ext));
+                            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/bridge.c:1270:33: warning: cast to smaller integer type 'uint32_t' (aka 'unsigned int') from 'char *' [-Wpointer-to-int-cast]
+        my_freeExt(getMrpMemPtr((uint32_t)mr_start_dsm_param->entry));
+
+                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+14 warnings generated.
+
+[3/79] Building C object CMakeFiles/entry.dir/vmrp/fileLib.c.o
+clang: warning: argument unused during compilation: '--gcc-toolchain=D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng' [-Wunused-command-line-argument]
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/fileLib.c:68:17: warning: cast to 'void *' from smaller integer type 'int' [-Wint-to-void-pointer-cast]
+    obj->data = (void *)f;
+                ^~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/fileLib.c:81:14: warning: cast to smaller integer type 'int' from 'void *' [-Wvoid-pointer-to-int-cast]
+    int fh = (int)obj->data;
+             ^~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/fileLib.c:94:23: warning: cast to smaller integer type 'int' from 'void *' [-Wvoid-pointer-to-int-cast]
+    off_t ret = lseek((int)obj->data, (off_t)pos, method);
+                      ^~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/fileLib.c:106:28: warning: cast to smaller integer type 'int' from 'void *' [-Wvoid-pointer-to-int-cast]
+    int32_t readnum = read((int)obj->data, p, (size_t)l);
+                           ^~~~~~~~~~~~~~
+
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/fileLib.c:118:30: warning: cast to smaller integer type 'int' from 'void *' [-Wvoid-pointer-to-int-cast]
+
+    int32_t writenum = write((int)obj->data, p, (size_t)l);
+
+                             ^~~~~~~~~~~~~~
+
+5 warnings generated.
+
+[4/79] Building C object CMakeFiles/entry.dir/vmrp/network.c.o
+clang: warning: argument unused during compilation: '--gcc-toolchain=D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng' [-Wunused-command-line-argument]
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/network.c:288:37: warning: cast to smaller integer type 'uint32_t' (aka 'unsigned int') from 'MR_INIT_NETWORK_CB' (aka 'int (*)(int)') [-Wpointer-to-int-cast]
+    bridge_dsm_network_cb(data->uc, (uint32_t)data->cb, r, (uint32_t)data->userData);
+                                    ^~~~~~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/network.c:288:60: warning: cast to smaller integer type 'uint32_t' (aka 'unsigned int') from 'void *' [-Wvoid-pointer-to-int-cast]
+    bridge_dsm_network_cb(data->uc, (uint32_t)data->cb, r, (uint32_t)data->userData);
+                                                           ^~~~~~~~~~~~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/network.c:368:37: warning: cast to smaller integer type 'uint32_t' (aka 'unsigned int') from 'MR_GET_HOST_CB' (aka 'int (*)(int)') [-Wpointer-to-int-cast]
+    bridge_dsm_network_cb(data->uc, (uint32_t)data->cb, r, (uint32_t)data->userData);
+                                    ^~~~~~~~~~~~~~~~~~
+D:/tmp/mrpohos/entry/src/main/cpp/vmrp/network.c:368:60: warning: cast to smaller integer type 'uint32_t' (aka 'unsigned int') from 'void *' [-Wvoid-pointer-to-int-cast]
+    bridge_dsm_network_cb(data->uc, (uint32_t)data->cb, r, (uint32_t)data->userData);
+                                                           ^~~~~~~~~~~~~~~~~~~~~~~~
+
+4 warnings generated.
+
+[5/79] Building C object CMakeFiles/entry.dir/vmrp/vmrp.c.o
+clang: warning: argument unused during compilation: '--gcc-toolchain=D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng' [-Wunused-command-line-argument]
+
+[6/79] Building C object CMakeFiles/entry.dir/vmrp/rbtree.c.o
+clang: warning: argument unused during compilation: '--gcc-toolchain=D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng' [-Wunused-command-line-argument]
+
+[7/79] Building C object CMakeFiles/entry.dir/vmrp/platform_harmony.c.o
+clang: warning: argument unused during compilation: '--gcc-toolchain=D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng' [-Wunused-command-line-argument]
+
+[8/79] Building C object CMakeFiles/entry.dir/vmrp/utils.c.o
+clang: warning: argument unused during compilation: '--gcc-toolchain=D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng' [-Wunused-command-line-argument]
+
+[9/79] Building CXX object CMakeFiles/entry.dir/napi_init.cpp.o
+clang++: warning: argument unused during compilation: '--gcc-toolchain=D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng' [-Wunused-command-line-argument]
+
+[10/79] Building C object unicorn/CMakeFiles/arm-softmmu.dir/qemu/exec-vary.c.o
+FAILED: unicorn/CMakeFiles/arm-softmmu.dir/qemu/exec-vary.c.o 
+D:\PROGRA~1\Huawei\DEVECO~1\sdk\default\hms\native\BiSheng\bin\clang.exe --target=aarch64-linux-ohos --gcc-toolchain="D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng" --sysroot="D:/Program Files/Huawei/DevEco Studio/sdk/default/openharmony/native/sysroot"  -I"D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/sysroot/usr/include" -ID:/tmp/mrpohos/entry/.cxx/default/default/debug/arm64-v8a -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/glib_compat -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/include -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/tcg -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -fno-addrsig -Wa,--noexecstack -Wformat -Werror=format-security  -D__MUSL__ -O0 -g -fno-limit-debug-info  -std=gnu11 -fPIC -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/tcg/aarch64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -Wall -fPIC -DNEED_CPU_H -include arm.h -ID:/tmp/mrpohos/entry/.cxx/default/default/debug/arm64-v8a/arm-softmmu -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/target/arm -MD -MT unicorn/CMakeFiles/arm-softmmu.dir/qemu/exec-vary.c.o -MF unicorn\CMakeFiles\arm-softmmu.dir\qemu\exec-vary.c.o.d -o unicorn/CMakeFiles/arm-softmmu.dir/qemu/exec-vary.c.o -c D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/exec-vary.c
+clang: warning: argument unused during compilation: '--gcc-toolchain=D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng' [-Wunused-command-line-argument]
+
+
+
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/exec-vary.c:25:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/exec/exec-all.h:23:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/hw/core/cpu.h:26:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/bitmap.h:16:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/bitops.h:16:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/host-utils.h:30:
+D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/int128.h:150:16: error: typedef redefinition with different types ('Int128' (aka 'struct Int128') vs '__int128')
+
+typedef Int128 __int128_t;
+
+               ^
+
+1 error generated.
+
+[11/79] Building C object unicorn/CMakeFiles/arm-softmmu.dir/qemu/softmmu/cpus.c.o
+FAILED: unicorn/CMakeFiles/arm-softmmu.dir/qemu/softmmu/cpus.c.o 
+D:\PROGRA~1\Huawei\DEVECO~1\sdk\default\hms\native\BiSheng\bin\clang.exe --target=aarch64-linux-ohos --gcc-toolchain="D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng" --sysroot="D:/Program Files/Huawei/DevEco Studio/sdk/default/openharmony/native/sysroot"  -I"D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/sysroot/usr/include" -ID:/tmp/mrpohos/entry/.cxx/default/default/debug/arm64-v8a -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/glib_compat -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/include -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/tcg -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -fno-addrsig -Wa,--noexecstack -Wformat -Werror=format-security  -D__MUSL__ -O0 -g -fno-limit-debug-info  -std=gnu11 -fPIC -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/tcg/aarch64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -Wall -fPIC -DNEED_CPU_H -include arm.h -ID:/tmp/mrpohos/entry/.cxx/default/default/debug/arm64-v8a/arm-softmmu -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/target/arm -MD -MT unicorn/CMakeFiles/arm-softmmu.dir/qemu/softmmu/cpus.c.o -MF unicorn\CMakeFiles\arm-softmmu.dir\qemu\softmmu\cpus.c.o.d -o unicorn/CMakeFiles/arm-softmmu.dir/qemu/softmmu/cpus.c.o -c D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/softmmu/cpus.c
+clang: warning: argument unused during compilation: '--gcc-toolchain=D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng' [-Wunused-command-line-argument]
+
+
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/softmmu/cpus.c:26:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/sysemu/cpus.h:4:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/timer.h:4:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/bitops.h:16:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/host-utils.h:30:
+D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/int128.h:150:16: error: typedef redefinition with different types ('Int128' (aka 'struct Int128') vs '__int128')
+
+typedef Int128 __int128_t;
+
+               ^
+
+1 error generated.
+
+[12/79] Building C object unicorn/CMakeFiles/arm-softmmu.dir/qemu/exec.c.o
+FAILED: unicorn/CMakeFiles/arm-softmmu.dir/qemu/exec.c.o 
+D:\PROGRA~1\Huawei\DEVECO~1\sdk\default\hms\native\BiSheng\bin\clang.exe --target=aarch64-linux-ohos --gcc-toolchain="D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng" --sysroot="D:/Program Files/Huawei/DevEco Studio/sdk/default/openharmony/native/sysroot"  -I"D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/sysroot/usr/include" -ID:/tmp/mrpohos/entry/.cxx/default/default/debug/arm64-v8a -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/glib_compat -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/include -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/tcg -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -fno-addrsig -Wa,--noexecstack -Wformat -Werror=format-security  -D__MUSL__ -O0 -g -fno-limit-debug-info  -std=gnu11 -fPIC -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/tcg/aarch64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -Wall -fPIC -DNEED_CPU_H -include arm.h -ID:/tmp/mrpohos/entry/.cxx/default/default/debug/arm64-v8a/arm-softmmu -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/target/arm -MD -MT unicorn/CMakeFiles/arm-softmmu.dir/qemu/exec.c.o -MF unicorn\CMakeFiles\arm-softmmu.dir\qemu\exec.c.o.d -o unicorn/CMakeFiles/arm-softmmu.dir/qemu/exec.c.o -c D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/exec.c
+clang: warning: argument unused during compilation: '--gcc-toolchain=D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng' [-Wunused-command-line-argument]
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/exec.c:22:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/exec/cpu-defs.h:26:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/host-utils.h:30:
+D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/int128.h:150:16: error: typedef redefinition with different types ('Int128' (aka 'struct Int128') vs '__int128')
+
+typedef Int128 __int128_t;
+
+               ^
+
+1 error generated.
+
+[13/79] Building C object unicorn/CMakeFiles/arm-softmmu.dir/qemu/softmmu/ioport.c.o
+FAILED: unicorn/CMakeFiles/arm-softmmu.dir/qemu/softmmu/ioport.c.o 
+D:\PROGRA~1\Huawei\DEVECO~1\sdk\default\hms\native\BiSheng\bin\clang.exe --target=aarch64-linux-ohos --gcc-toolchain="D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng" --sysroot="D:/Program Files/Huawei/DevEco Studio/sdk/default/openharmony/native/sysroot"  -I"D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/sysroot/usr/include" -ID:/tmp/mrpohos/entry/.cxx/default/default/debug/arm64-v8a -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/glib_compat -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/include -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/tcg -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -fno-addrsig -Wa,--noexecstack -Wformat -Werror=format-security  -D__MUSL__ -O0 -g -fno-limit-debug-info  -std=gnu11 -fPIC -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/tcg/aarch64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -Wall -fPIC -DNEED_CPU_H -include arm.h -ID:/tmp/mrpohos/entry/.cxx/default/default/debug/arm64-v8a/arm-softmmu -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/target/arm -MD -MT unicorn/CMakeFiles/arm-softmmu.dir/qemu/softmmu/ioport.c.o -MF unicorn\CMakeFiles\arm-softmmu.dir\qemu\softmmu\ioport.c.o.d -o unicorn/CMakeFiles/arm-softmmu.dir/qemu/softmmu/ioport.c.o -c D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/softmmu/ioport.c
+clang: warning: argument unused during compilation: '--gcc-toolchain=D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng' [-Wunused-command-line-argument]
+
+
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/softmmu/ioport.c:29:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/target/arm/cpu.h:23:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/hw/registerfields.h:14:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/bitops.h:16:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/host-utils.h:30:
+D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/int128.h:150:16: error: typedef redefinition with different types ('Int128' (aka 'struct Int128') vs '__int128')
+
+typedef Int128 __int128_t;
+
+               ^
+
+1 error generated.
+
+[14/79] Building C object unicorn/CMakeFiles/arm-softmmu.dir/qemu/softmmu/memory_mapping.c.o
+FAILED: unicorn/CMakeFiles/arm-softmmu.dir/qemu/softmmu/memory_mapping.c.o 
+D:\PROGRA~1\Huawei\DEVECO~1\sdk\default\hms\native\BiSheng\bin\clang.exe --target=aarch64-linux-ohos --gcc-toolchain="D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng" --sysroot="D:/Program Files/Huawei/DevEco Studio/sdk/default/openharmony/native/sysroot"  -I"D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/sysroot/usr/include" -ID:/tmp/mrpohos/entry/.cxx/default/default/debug/arm64-v8a -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/glib_compat -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/include -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/tcg -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -fno-addrsig -Wa,--noexecstack -Wformat -Werror=format-security  -D__MUSL__ -O0 -g -fno-limit-debug-info  -std=gnu11 -fPIC -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/tcg/aarch64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -Wall -fPIC -DNEED_CPU_H -include arm.h -ID:/tmp/mrpohos/entry/.cxx/default/default/debug/arm64-v8a/arm-softmmu -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/target/arm -MD -MT unicorn/CMakeFiles/arm-softmmu.dir/qemu/softmmu/memory_mapping.c.o -MF unicorn\CMakeFiles\arm-softmmu.dir\qemu\softmmu\memory_mapping.c.o.d -o unicorn/CMakeFiles/arm-softmmu.dir/qemu/softmmu/memory_mapping.c.o -c D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/softmmu/memory_mapping.c
+clang: warning: argument unused during compilation: '--gcc-toolchain=D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng' [-Wunused-command-line-argument]
+
+
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/softmmu/memory_mapping.c:16:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/target/arm/cpu.h:23:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/hw/registerfields.h:14:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/bitops.h:16:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/host-utils.h:30:
+D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/int128.h:150:16: error: typedef redefinition with different types ('Int128' (aka 'struct Int128') vs '__int128')
+
+typedef Int128 __int128_t;
+
+               ^
+
+1 error generated.
+
+[15/79] Building C object unicorn/CMakeFiles/arm-softmmu.dir/qemu/softmmu/memory.c.o
+FAILED: unicorn/CMakeFiles/arm-softmmu.dir/qemu/softmmu/memory.c.o 
+D:\PROGRA~1\Huawei\DEVECO~1\sdk\default\hms\native\BiSheng\bin\clang.exe --target=aarch64-linux-ohos --gcc-toolchain="D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng" --sysroot="D:/Program Files/Huawei/DevEco Studio/sdk/default/openharmony/native/sysroot"  -I"D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/sysroot/usr/include" -ID:/tmp/mrpohos/entry/.cxx/default/default/debug/arm64-v8a -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/glib_compat -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/include -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/tcg -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -fno-addrsig -Wa,--noexecstack -Wformat -Werror=format-security  -D__MUSL__ -O0 -g -fno-limit-debug-info  -std=gnu11 -fPIC -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/tcg/aarch64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -Wall -fPIC -DNEED_CPU_H -include arm.h -ID:/tmp/mrpohos/entry/.cxx/default/default/debug/arm64-v8a/arm-softmmu -ID:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/target/arm -MD -MT unicorn/CMakeFiles/arm-softmmu.dir/qemu/softmmu/memory.c.o -MF unicorn\CMakeFiles\arm-softmmu.dir\qemu\softmmu\memory.c.o.d -o unicorn/CMakeFiles/arm-softmmu.dir/qemu/softmmu/memory.c.o -c D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/softmmu/memory.c
+clang: warning: argument unused during compilation: '--gcc-toolchain=D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng' [-Wunused-command-line-argument]
+
+
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/softmmu/memory.c:17:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/target/arm/cpu.h:23:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/hw/registerfields.h:14:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/bitops.h:16:
+In file included from D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/host-utils.h:30:
+D:/tmp/mrpohos/entry/src/main/cpp/unicorn/qemu/include/qemu/int128.h:150:16: error: typedef redefinition with different types ('Int128' (aka 'struct Int128') vs '__int128')
+
+typedef Int128 __int128_t;
+
+               ^
+
+1 error generated.
+
+ninja: build stopped: subcommand failed.
+undefined
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --debug option to get more log output.
+
+> hvigor ERROR: BUILD FAILED in 33 s 511 ms 
+> hvigor WARN: Can not getEventById:'cd062459-b87b-4926-9c33-c0d1efcad75f' from MetricCacheService.
+> hvigor ERROR: Failed :entry:default@CompileResource... 
+> hvigor ERROR: 00305010 Syntax Error
+Error Message: Cannot read properties of undefined (reading 'getName')
+
+* Try the following:
+  > Check whether undefined attributes or methods are used in the hvigorconfig.ts and hvigorfile.ts files.
+  > Go to the official website for help
+  > More info: https://developer.huawei.com/consumer/cn/doc/harmonyos-faqs/faqs-compiling-and-building-108
+
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --debug option to get more log output.
+
+
+
+Process finished with exit code -1
+

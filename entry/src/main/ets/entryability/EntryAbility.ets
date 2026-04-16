@@ -1,48 +1,78 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
+import { fileIo as fs } from '@kit.CoreFileKit';
 
 const DOMAIN = 0x0000;
+const TAG = 'EntryAbility';
+
+async function copyRawfileToSandbox(context: Context, sandboxPath: string) {
+  let resourceDir = sandboxPath;
+  fs.mkdirSync(resourceDir + '/mythroad/system', true);
+
+  let files = [
+    'cfunction.ext',
+    'mythroad/dsm_gm.mrp',
+    'mythroad/system/gb12.uc2',
+    'mythroad/system/gb16.uc2',
+  ];
+
+  for (let file of files) {
+    let destPath = resourceDir + '/' + file;
+    if (!fs.accessSync(destPath)) {
+      try {
+        let srcPath = context.resourceDir + '/' + file;
+        fs.copyFileSync(srcPath, destPath);
+        hilog.info(DOMAIN, TAG, 'Copied rawfile: %{public}s', file);
+      } catch (err) {
+        hilog.error(DOMAIN, TAG, 'Failed to copy %{public}s: %{public}s', file, JSON.stringify(err));
+      }
+    }
+  }
+}
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     try {
       this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     } catch (err) {
-      hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
+      hilog.error(DOMAIN, TAG, 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
+    hilog.info(DOMAIN, TAG, '%{public}s', 'Ability onCreate');
+
+    let sandboxPath = this.context.filesDir;
+    AppStorage.SetOrCreate<string>('sandboxPath', sandboxPath);
+
+    copyRawfileToSandbox(this.context, sandboxPath).catch((err: Error) => {
+      hilog.error(DOMAIN, TAG, 'copyRawfileToSandbox failed: %{public}s', err.message);
+    });
   }
 
   onDestroy(): void {
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
+    hilog.info(DOMAIN, TAG, '%{public}s', 'Ability onDestroy');
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
-    // Main window is created, set main page for this ability
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
+    hilog.info(DOMAIN, TAG, '%{public}s', 'Ability onWindowStageCreate');
 
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
-        hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
+        hilog.error(DOMAIN, TAG, 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
         return;
       }
-      hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
+      hilog.info(DOMAIN, TAG, 'Succeeded in loading the content.');
     });
   }
 
   onWindowStageDestroy(): void {
-    // Main window is destroyed, release UI related resources
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy');
+    hilog.info(DOMAIN, TAG, '%{public}s', 'Ability onWindowStageDestroy');
   }
 
   onForeground(): void {
-    // Ability has brought to foreground
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
+    hilog.info(DOMAIN, TAG, '%{public}s', 'Ability onForeground');
   }
 
   onBackground(): void {
-    // Ability has back to background
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground');
+    hilog.info(DOMAIN, TAG, '%{public}s', 'Ability onBackground');
   }
 }
