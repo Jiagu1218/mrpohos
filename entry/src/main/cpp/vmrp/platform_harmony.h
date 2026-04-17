@@ -18,4 +18,10 @@ void vmrp_setCallbacks(
     void (*onTimerStop)()
 );
 
+/** title/text 为 UTF-8（与 DSM 的 FLAG_USE_UTF8_EDIT 一致），在 UI 线程弹出编辑框后由 JS 调用 setEditResult 写入。 */
+void vmrp_setEditRequestCallback(void (*cb)(const char *title, const char *text, int32_t type, int32_t max_size));
+
+/** 在 MR_DIALOG_KEY_OK 之前调用，将 UTF-8 内容交给 mr_editGetText；传 NULL 或空串表示无内容。 */
+void harmony_edit_set_result_utf8(const char *utf8);
+
 #endif

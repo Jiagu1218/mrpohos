@@ -37,6 +37,14 @@ static void logNative(const char *fmt, ...) {
 
 static napi_threadsafe_function g_timerStartTsfn = nullptr;
 static napi_threadsafe_function g_timerStopTsfn = nullptr;
+static napi_threadsafe_function g_editRequestTsfn = nullptr;
+
+struct EditRequestTsfnData {
+    char *title;
+    char *text;
+    int32_t type;
+    int32_t max_size;
+};
 
 static OHNativeWindow *g_nativeWindow = nullptr;
 static OH_NativeXComponent *g_xComponent = nullptr;
@@ -217,6 +225,56 @@ static void callJsTimerStop(napi_env env, napi_value js_cb, void *context, void 
     napi_value undefined;
     napi_get_undefined(env, &undefined);
     napi_call_function(env, undefined, js_cb, 0, nullptr, nullptr);
+}
+
+static void callJsEditRequest(napi_env env, napi_value js_cb, void *context, void *data) {
+    if (data == nullptr) {
+        return;
+    }
+    EditRequestTsfnData *d = (EditRequestTsfnData *)data;
+    napi_value undefined;
+    napi_get_undefined(env, &undefined);
+    napi_value arg0;
+    napi_value arg1;
+    napi_value arg2;
+    napi_value arg3;
+    napi_create_string_utf8(env, d->title, NAPI_AUTO_LENGTH, &arg0);
+    napi_create_string_utf8(env, d->text, NAPI_AUTO_LENGTH, &arg1);
+    napi_create_int32(env, d->type, &arg2);
+    napi_create_int32(env, d->max_size, &arg3);
+    napi_value argv[4] = {arg0, arg1, arg2, arg3};
+    napi_call_function(env, undefined, js_cb, 4, argv, nullptr);
+    free(d->title);
+    free(d->text);
+    free(d);
+}
+
+extern "C" void vmrp_harmony_on_edit_request_for_platform(const char *title, const char *text, int32_t type,
+    int32_t max_size) {
+    if (!g_editRequestTsfn) {
+        static int s_warnedMissingEditTsfn;
+        if (!s_warnedMissingEditTsfn) {
+            s_warnedMissingEditTsfn = 1;
+            OH_LOG_WARN(LOG_APP,
+                "editCreate: JS onEditRequest not registered (register before init/start like onTimerStart)");
+        }
+        return;
+    }
+    EditRequestTsfnData *p = (EditRequestTsfnData *)malloc(sizeof(EditRequestTsfnData));
+    if (!p) {
+        return;
+    }
+    p->title = strdup(title ? title : "");
+    p->text = strdup(text ? text : "");
+    if (!p->title || !p->text) {
+        free(p->title);
+        free(p->text);
+        free(p);
+        return;
+    }
+    p->type = type;
+    p->max_size = max_size;
+    napi_call_threadsafe_function(g_editRequestTsfn, p, napi_tsfn_nonblocking);
 }
 
 static void OnSurfaceCreatedCB(OH_NativeXComponent *component, void *window) {
@@ -418,6 +476,56 @@ static napi_value NapiOnTimerStart(napi_env env, napi_callback_info info) {
     return undefined;
 }
 
+static napi_value NapiSetEditResult(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    if (argc < 1) {
+        napi_value undefined;
+        napi_get_undefined(env, &undefined);
+        return undefined;
+    }
+
+    size_t len = 0;
+    napi_get_value_string_utf8(env, args[0], nullptr, 0, &len);
+    char *buf = (char *)malloc(len + 1);
+    if (!buf) {
+        napi_value undefined;
+        napi_get_undefined(env, &undefined);
+        return undefined;
+    }
+    napi_get_value_string_utf8(env, args[0], buf, len + 1, &len);
+    harmony_edit_set_result_utf8(buf);
+    free(buf);
+
+    napi_value undefined;
+    napi_get_undefined(env, &undefined);
+    return undefined;
+}
+
+static napi_value NapiOnEditRequest(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+
+    napi_value resource_name;
+    napi_create_string_utf8(env, "EditRequestCallback", NAPI_AUTO_LENGTH, &resource_name);
+
+    napi_threadsafe_function tsfn;
+    napi_create_threadsafe_function(env, args[0], nullptr, resource_name, 0, 1, nullptr, nullptr, nullptr,
+        callJsEditRequest, &tsfn);
+    if (g_editRequestTsfn) {
+        napi_release_threadsafe_function(g_editRequestTsfn, napi_tsfn_release);
+    }
+    g_editRequestTsfn = tsfn;
+
+    vmrp_setEditRequestCallback(vmrp_harmony_on_edit_request_for_platform);
+
+    napi_value undefined;
+    napi_get_undefined(env, &undefined);
+    return undefined;
+}
+
 static napi_value NapiOnTimerStop(napi_env env, napi_callback_info info) {
     size_t argc = 1;
     napi_value args[1] = {nullptr};
@@ -447,6 +555,8 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"timer", nullptr, NapiTimer, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"onTimerStart", nullptr, NapiOnTimerStart, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"onTimerStop", nullptr, NapiOnTimerStop, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"onEditRequest", nullptr, NapiOnEditRequest, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"setEditResult", nullptr, NapiSetEditResult, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
 
