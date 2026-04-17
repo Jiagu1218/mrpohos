@@ -42,6 +42,10 @@ static OHNativeWindow *g_nativeWindow = nullptr;
 static OH_NativeXComponent *g_xComponent = nullptr;
 static pthread_mutex_t g_windowMutex = PTHREAD_MUTEX_INITIALIZER;
 
+/* RequestBuffer 常给未初始化的新缓冲；只写 dirty 矩形其余为垃圾会闪屏。在此保留与 MRP 对齐的整屏 RGBA 再整幅上传。 */
+static uint32_t g_mrpRgbaComposite[(size_t)SCREEN_WIDTH * (size_t)SCREEN_HEIGHT];
+static uint8_t g_mrpCompositeReady;
+
 static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h, int32_t srcPitch,
     int32_t srcFromFullScreen) {
     pthread_mutex_lock(&g_windowMutex);
@@ -107,20 +111,39 @@ static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w,
         srcPitch = w;
     }
 
+    if (!g_mrpCompositeReady) {
+        const size_t n = (size_t)SCREEN_WIDTH * (size_t)SCREEN_HEIGHT;
+        for (size_t i = 0; i < n; i++) {
+            g_mrpRgbaComposite[i] = 0xFF000000u;
+        }
+        g_mrpCompositeReady = 1;
+    }
+
     for (int32_t row = 0; row < h; row++) {
         int32_t screenY = y + row;
-        if (screenY < 0 || screenY >= bufH) continue;
-        uint32_t *dstRow = dst + (size_t)screenY * rowStrideUint32;
+        if (screenY < 0 || screenY >= SCREEN_HEIGHT || screenY >= bufH) {
+            continue;
+        }
         for (int32_t col = 0; col < w; col++) {
             int32_t screenX = x + col;
-            if (screenX < 0 || screenX >= bufW) continue;
+            if (screenX < 0 || screenX >= SCREEN_WIDTH || screenX >= bufW) {
+                continue;
+            }
             int32_t srcX = srcFromFullScreen ? (x + col) : col;
             int32_t srcY = srcFromFullScreen ? (y + row) : row;
             uint16_t pixel = bmp[(size_t)srcY * (size_t)srcPitch + (size_t)srcX];
             uint8_t r = ((pixel >> 11) & 0x1F) << 3;
             uint8_t g = ((pixel >> 5) & 0x3F) << 2;
             uint8_t b = (pixel & 0x1F) << 3;
-            dstRow[screenX] = 0xFF000000 | (b << 16) | (g << 8) | r;
+            g_mrpRgbaComposite[(size_t)screenY * (size_t)SCREEN_WIDTH + (size_t)screenX] =
+                0xFF000000u | ((uint32_t)b << 16) | ((uint32_t)g << 8) | (uint32_t)r;
+        }
+    }
+
+    for (int32_t sy = 0; sy < bufH && sy < SCREEN_HEIGHT; sy++) {
+        uint32_t *dstRow = dst + (size_t)sy * rowStrideUint32;
+        for (int32_t sx = 0; sx < bufW && sx < SCREEN_WIDTH; sx++) {
+            dstRow[sx] = g_mrpRgbaComposite[(size_t)sy * (size_t)SCREEN_WIDTH + (size_t)sx];
         }
     }
 
@@ -214,6 +237,7 @@ static void OnSurfaceChangedCB(OH_NativeXComponent *component, void *window) {
 static void OnSurfaceDestroyedCB(OH_NativeXComponent *component, void *window) {
     pthread_mutex_lock(&g_windowMutex);
     g_nativeWindow = nullptr;
+    g_mrpCompositeReady = 0;
     pthread_mutex_unlock(&g_windowMutex);
 }
 

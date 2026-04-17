@@ -91,6 +91,9 @@ static event_t *dsm_event;   // 用于传递真实事件
 static start_t *mr_start_dsm_param;
 static uint32_t mr_extHelper_addr;
 
+/* 观察到整屏 mr_drawBitmap(bmp,0,0,mr_sw,mr_sh) 时的 bmp；后续同指针的局部刷新即 _DispUpEx(mr_screenBuf,...) */
+static uint32_t s_mr_draw_cached_screen_bmp_guest;
+
 static const char MUTEX_LOCK_FAIL[] = "mutex lock fail";
 static const char MUTEX_UNLOCK_FAIL[] = "mutex unlock fail";
 static pthread_mutex_t mutex;
@@ -176,6 +179,233 @@ static uint32_t getArg(uc_engine *uc, uint32_t n) {
     return v;
 }
 
+/* mr_table 里 mr_screenBuf 为 uint16**、mr_screen_w/h 为 int32*，槽位存的是「指向变量的指针」需再读一层 */
+static uint32_t guest_read_u32(uc_engine *uc, uint32_t addr) {
+    uint32_t v = 0;
+    if (addr == 0 || uc_mem_read(uc, addr, &v, 4) != UC_ERR_OK) {
+        return 0;
+    }
+    return v;
+}
+
+/* 判断 guest 地址是否像屏缓冲指针：在 mrp 线性内存内且 2 字节对齐 */
+static int guest_addr_is_plausible_screen_ptr(uint32_t a) {
+    return a != 0 && (a & 1u) == 0 && a >= START_ADDRESS && a < END_ADDRESS;
+}
+
+/* mythroad 里 BITMAPMAX 槽位始终指向 mr_screenBuf，比依赖 0x16C 槽格式更稳 */
+#define BRIDGE_MR_BITMAP_BITMAX 30
+#define BRIDGE_MR_BITMAP_SLOTS 31
+
+static uint32_t guest_mr_bitmap_array_guest(uc_engine *uc, uint32_t table_base) {
+    uint32_t slot = guest_read_u32(uc, table_base + 0x17C);
+    if (slot == 0) {
+        return 0;
+    }
+    /* 多数实现槽内即为 mr_bitmap[] 首址；若先读 *slot 会把 [0].w/[0].h 误当成指针 */
+    if ((slot & 3u) == 0 && slot >= START_ADDRESS && slot < END_ADDRESS) {
+        return slot;
+    }
+    uint32_t inner = guest_read_u32(uc, slot);
+    if (inner != 0 && (inner & 3u) == 0 && inner >= START_ADDRESS && inner < END_ADDRESS) {
+        return inner;
+    }
+    return 0;
+}
+
+static uint32_t guest_mr_bitmap_p_at(uc_engine *uc, uint32_t table_base, int index) {
+    uint32_t arr = guest_mr_bitmap_array_guest(uc, table_base);
+    if (arr == 0 || index < 0 || index >= BRIDGE_MR_BITMAP_SLOTS) {
+        return 0;
+    }
+    uint32_t rec = arr + (uint32_t)index * 16u;
+    return guest_read_u32(uc, rec + 12u);
+}
+
+/* 本帧 bmp 是否为「屏缓冲首址」：兼容槽内为 uint16**（解引用）或槽内直接为像素首址 */
+static uint32_t guest_screen_base_if_bmp_is_screen(uc_engine *uc, uint32_t table_base, uint32_t bmp_guest) {
+    if (bmp_guest == 0) {
+        return 0;
+    }
+    uint32_t slot = guest_read_u32(uc, table_base + 0x16C);
+    if (slot == 0) {
+        return 0;
+    }
+    uint32_t deref = guest_read_u32(uc, slot);
+    int deref_ok = guest_addr_is_plausible_screen_ptr(deref);
+    int slot_ok = guest_addr_is_plausible_screen_ptr(slot);
+
+    if (deref_ok && bmp_guest == deref) {
+        return deref;
+    }
+    if (slot_ok && bmp_guest == slot) {
+        return slot;
+    }
+    return 0;
+}
+
+/* 用于「指针是否落在整屏缓冲内」的屏基址：优先 0x16C 解引用；失败则用 mr_bitmap[BITMAPMAX].p */
+static uint32_t guest_screen_base_guess(uc_engine *uc, uint32_t table_base) {
+    uint32_t slot = guest_read_u32(uc, table_base + 0x16C);
+    if (slot == 0) {
+        return guest_mr_bitmap_p_at(uc, table_base, BRIDGE_MR_BITMAP_BITMAX);
+    }
+    uint32_t deref = guest_read_u32(uc, slot);
+    if (guest_addr_is_plausible_screen_ptr(deref)) {
+        return deref;
+    }
+    uint32_t via_bm = guest_mr_bitmap_p_at(uc, table_base, BRIDGE_MR_BITMAP_BITMAX);
+    if (via_bm != 0) {
+        return via_bm;
+    }
+    return 0;
+}
+
+static int32_t resolve_guest_screen_w(uc_engine *uc, uint32_t table_base) {
+    uint32_t pw = guest_read_u32(uc, table_base + 0x170);
+    if (pw == 0) {
+        return SCREEN_WIDTH;
+    }
+    int32_t sw = (int32_t)guest_read_u32(uc, pw);
+    if (sw > 0 && sw <= 4096) {
+        return sw;
+    }
+    sw = (int32_t)pw;
+    if (sw > 0 && sw <= 4096) {
+        return sw;
+    }
+    return SCREEN_WIDTH;
+}
+
+static int32_t resolve_guest_screen_h(uc_engine *uc, uint32_t table_base) {
+    uint32_t ph = guest_read_u32(uc, table_base + 0x174);
+    if (ph == 0) {
+        return SCREEN_HEIGHT;
+    }
+    int32_t sh = (int32_t)guest_read_u32(uc, ph);
+    if (sh > 0 && sh <= 4096) {
+        return sh;
+    }
+    sh = (int32_t)ph;
+    if (sh > 0 && sh <= 4096) {
+        return sh;
+    }
+    return SCREEN_HEIGHT;
+}
+
+/* mr_bitmap[] 每项 16 字节：w,h,buflen,type,p（与 mythroad mr_bitmapSt 一致） */
+
+static int32_t resolve_draw_src_pitch(uc_engine *uc, uint32_t table_base, uint32_t bmp_guest, int32_t mr_sw, int32_t mr_sh,
+    uint32_t dw, uint32_t dh, int32_t *srcFromFullScreen) {
+    *srcFromFullScreen = 0;
+    if (bmp_guest == 0) {
+        return (int32_t)dw;
+    }
+
+    if (s_mr_draw_cached_screen_bmp_guest != 0 && bmp_guest == s_mr_draw_cached_screen_bmp_guest) {
+        *srcFromFullScreen = 1;
+        return mr_sw;
+    }
+
+    /* mythroad：mr_bitmap[BITMAPMAX].p == mr_screenBuf，_DispUpEx 始终传该指针 */
+    {
+        uint32_t screen_p_bm = guest_mr_bitmap_p_at(uc, table_base, BRIDGE_MR_BITMAP_BITMAX);
+        if (screen_p_bm != 0 && bmp_guest == screen_p_bm) {
+            *srcFromFullScreen = 1;
+            return mr_sw;
+        }
+    }
+
+    if (guest_screen_base_if_bmp_is_screen(uc, table_base, bmp_guest) != 0) {
+        *srcFromFullScreen = 1;
+        return mr_sw;
+    }
+
+    /* 指针落在整屏缓冲内（非基址）：仍按整屏行距，相对 bmp 取 (col,row) */
+    uint32_t screen_guess = guest_screen_base_guess(uc, table_base);
+    if (screen_guess != 0 && mr_sw > 0 && mr_sh > 0) {
+        uint64_t span = (uint64_t)(uint32_t)mr_sw * (uint64_t)(uint32_t)mr_sh * 2u;
+        uint64_t end = (uint64_t)screen_guess + span;
+        if ((uint64_t)bmp_guest >= (uint64_t)screen_guess && (uint64_t)bmp_guest < end) {
+            *srcFromFullScreen = 0;
+            return mr_sw;
+        }
+    }
+
+    uint32_t bmp_arr = guest_mr_bitmap_array_guest(uc, table_base);
+    if (bmp_arr != 0) {
+        /* 先精确匹配 p==bmp（整图首址），避免被「范围包含」的小图误判 */
+        for (int i = 0; i < BRIDGE_MR_BITMAP_SLOTS; i++) {
+            uint32_t rec = bmp_arr + (uint32_t)(i * 16u);
+            uint16_t bw = 0, bh = 0;
+            uint32_t buflen = 0, p_guest = 0;
+            (void)uc_mem_read(uc, rec, &bw, 2);
+            (void)uc_mem_read(uc, rec + 2u, &bh, 2);
+            (void)uc_mem_read(uc, rec + 4u, &buflen, 4);
+            (void)uc_mem_read(uc, rec + 12u, &p_guest, 4);
+            if (p_guest == 0 || buflen == 0 || p_guest != bmp_guest) {
+                continue;
+            }
+            int32_t pitch = (int32_t)bw;
+            if (pitch <= 0 || pitch > 4096) {
+                pitch = (int32_t)dw;
+            }
+            if (mr_sw > 0 && mr_sh > 0) {
+                uint64_t need = (uint64_t)(uint32_t)mr_sw * (uint32_t)mr_sh * 2u;
+                *srcFromFullScreen = (buflen >= need) ? 1 : 0;
+            } else {
+                *srcFromFullScreen = 0;
+            }
+            return pitch;
+        }
+        /* 再按范围包含 bmp，取 buflen 最大者（整屏缓冲通常远大于小图） */
+        int best_i = -1;
+        uint32_t best_buflen = 0;
+        for (int i = 0; i < BRIDGE_MR_BITMAP_SLOTS; i++) {
+            uint32_t rec = bmp_arr + (uint32_t)(i * 16u);
+            uint16_t bw = 0, bh = 0;
+            uint32_t buflen = 0, p_guest = 0;
+            (void)uc_mem_read(uc, rec, &bw, 2);
+            (void)uc_mem_read(uc, rec + 2u, &bh, 2);
+            (void)uc_mem_read(uc, rec + 4u, &buflen, 4);
+            (void)uc_mem_read(uc, rec + 12u, &p_guest, 4);
+            if (p_guest == 0 || buflen == 0) {
+                continue;
+            }
+            uint64_t bend = (uint64_t)p_guest + (uint64_t)buflen;
+            if ((uint64_t)bmp_guest >= (uint64_t)p_guest && (uint64_t)bmp_guest < bend) {
+                if (buflen > best_buflen) {
+                    best_buflen = buflen;
+                    best_i = i;
+                }
+            }
+        }
+        if (best_i >= 0) {
+            uint32_t rec = bmp_arr + (uint32_t)(best_i * 16u);
+            uint16_t bw = 0;
+            uint32_t buflen = 0, p_guest = 0;
+            (void)uc_mem_read(uc, rec, &bw, 2);
+            (void)uc_mem_read(uc, rec + 4u, &buflen, 4);
+            (void)uc_mem_read(uc, rec + 12u, &p_guest, 4);
+            int32_t pitch = (int32_t)bw;
+            if (pitch <= 0 || pitch > 4096) {
+                pitch = (int32_t)dw;
+            }
+            if (bmp_guest == p_guest && mr_sw > 0 && mr_sh > 0) {
+                uint64_t need = (uint64_t)(uint32_t)mr_sw * (uint32_t)mr_sh * 2u;
+                *srcFromFullScreen = (buflen >= need) ? 1 : 0;
+            } else {
+                *srcFromFullScreen = 0;
+            }
+            return pitch;
+        }
+    }
+
+    *srcFromFullScreen = 0;
+    (void)dh;
+    return (int32_t)dw;
+}
+
 // 实际上mrc_refreshScreen()是调用的这个方法
 static void br_mr_drawBitmap(BridgeMap *o, uc_engine *uc) {
     // typedef void (*T_mr_drawBitmap)(uint16* bmp, int16 x, int16 y, uint16 w, uint16 h);
@@ -192,19 +422,19 @@ static void br_mr_drawBitmap(BridgeMap *o, uc_engine *uc) {
 
     LOG("ext call %s(0x%X, %d, %d, %u, %u)\n", o->name, bmp, x, y, w, h);
 
-    /* mythroad：整屏缓冲上的局部刷新用 mr_screen_w 行距；子图/偏移指针用矩形宽度 w 作紧凑行距 */
     uint32_t table_base = toMrpMemAddr(mr_table);
-    uint32_t screen_pixels_guest = 0;
-    (void)uc_mem_read(uc, table_base + 0x16C, &screen_pixels_guest, 4);
-    int32_t mr_sw = 0;
-    (void)uc_mem_read(uc, table_base + 0x170, &mr_sw, 4);
-    if (mr_sw <= 0 || mr_sw > 4096) {
-        mr_sw = SCREEN_WIDTH;
-    }
-    int32_t srcFromFullScreen = (bmp == screen_pixels_guest) ? 1 : 0;
-    int32_t srcPitch = srcFromFullScreen ? mr_sw : (int32_t)w;
+    int32_t mr_sw = resolve_guest_screen_w(uc, table_base);
+    int32_t mr_sh = resolve_guest_screen_h(uc, table_base);
+
+    int32_t srcFromFullScreen = 0;
+    int32_t srcPitch = resolve_draw_src_pitch(uc, table_base, bmp, mr_sw, mr_sh, w, h, &srcFromFullScreen);
 
     guiDrawBitmap(getMrpMemPtr(bmp), (int32_t)x, (int32_t)y, (int32_t)w, (int32_t)h, srcPitch, srcFromFullScreen);
+
+    if (mr_sw > 0 && mr_sh > 0 && (int32_t)x == 0 && (int32_t)y == 0 && (uint32_t)w == (uint32_t)mr_sw &&
+        (uint32_t)h == (uint32_t)mr_sh) {
+        s_mr_draw_cached_screen_bmp_guest = bmp;
+    }
 }
 
 static void br_mr_open(BridgeMap *o, uc_engine *uc) {
@@ -1228,6 +1458,7 @@ uc_err bridge_init(uc_engine *uc) {
         perror("mutex init fail");
         exit(EXIT_FAILURE);
     }
+    s_mr_draw_cached_screen_bmp_guest = 0;
     uint32_t len = 4 * countof(mr_table_funcMap);  // 因为都是指针，所以直接可以算出来总内存大小
     mr_table = hooks_init(uc, mr_table_funcMap, countof(mr_table_funcMap), len);
 
