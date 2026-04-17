@@ -87,7 +87,11 @@ char *editGetText(int32 edit) {
     return holdEditText;
 }
 
-void guiDrawBitmap(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h) {
+void guiDrawBitmap(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h, int32_t srcPitch,
+    int32_t srcFromFullScreen) {
+    if (srcPitch <= 0) {
+        srcPitch = SCREEN_WIDTH;
+    }
     SDL_Surface *surface = SDL_GetWindowSurface(window);
     if (SDL_MUSTLOCK(surface)) {
         if (SDL_LockSurface(surface) != 0) printf("SDL_LockSurface err\n");
@@ -99,7 +103,9 @@ void guiDrawBitmap(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h) {
             if (xx < 0 || yy < 0 || xx >= SCREEN_WIDTH || yy >= SCREEN_HEIGHT) {
                 continue;
             }
-            uint16_t color = *(bmp + (xx + yy * SCREEN_WIDTH));
+            int32_t sx = srcFromFullScreen ? xx : i;
+            int32_t sy = srcFromFullScreen ? yy : j;
+            uint16_t color = *(bmp + (sx + sy * srcPitch));
             Uint32 *p = (Uint32 *)(((Uint8 *)surface->pixels) + surface->pitch * yy) + xx;
             *p = SDL_MapRGB(surface->format, PIXEL565R(color), PIXEL565G(color), PIXEL565B(color));
         }

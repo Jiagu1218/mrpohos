@@ -42,7 +42,8 @@ static OHNativeWindow *g_nativeWindow = nullptr;
 static OH_NativeXComponent *g_xComponent = nullptr;
 static pthread_mutex_t g_windowMutex = PTHREAD_MUTEX_INITIALIZER;
 
-static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h) {
+static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h, int32_t srcPitch,
+    int32_t srcFromFullScreen) {
     pthread_mutex_lock(&g_windowMutex);
     OHNativeWindow *window = g_nativeWindow;
     if (!window) {
@@ -102,15 +103,20 @@ static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w,
         s_loggedBufferShape = 1;
     }
 
+    if (srcPitch <= 0) {
+        srcPitch = w;
+    }
+
     for (int32_t row = 0; row < h; row++) {
         int32_t screenY = y + row;
         if (screenY < 0 || screenY >= bufH) continue;
-        uint16_t *srcRow = bmp + row * w;
         uint32_t *dstRow = dst + (size_t)screenY * rowStrideUint32;
         for (int32_t col = 0; col < w; col++) {
             int32_t screenX = x + col;
             if (screenX < 0 || screenX >= bufW) continue;
-            uint16_t pixel = srcRow[col];
+            int32_t srcX = srcFromFullScreen ? (x + col) : col;
+            int32_t srcY = srcFromFullScreen ? (y + row) : row;
+            uint16_t pixel = bmp[(size_t)srcY * (size_t)srcPitch + (size_t)srcX];
             uint8_t r = ((pixel >> 11) & 0x1F) << 3;
             uint8_t g = ((pixel >> 5) & 0x3F) << 2;
             uint8_t b = (pixel & 0x1F) << 3;
@@ -125,13 +131,17 @@ static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w,
     pthread_mutex_unlock(&g_windowMutex);
 }
 
-static void onDrawCallback(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h) {
+static void onDrawCallback(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h, int32_t srcPitch,
+    int32_t srcFromFullScreen) {
     static int drawCount = 0;
     if (drawCount < 20) {
-        OH_LOG_INFO(LOG_APP, "drawFrame: x=%{public}d, y=%{public}d, w=%{public}d, h=%{public}d, window=%{public}p", x, y, w, h, g_nativeWindow);
+        OH_LOG_INFO(LOG_APP,
+            "drawFrame: x=%{public}d, y=%{public}d, w=%{public}d, h=%{public}d, pitch=%{public}d fullScr=%{public}d "
+            "window=%{public}p",
+            x, y, w, h, srcPitch, srcFromFullScreen, g_nativeWindow);
         drawCount++;
     }
-    renderToNativeWindow(bmp, x, y, w, h);
+    renderToNativeWindow(bmp, x, y, w, h, srcPitch, srcFromFullScreen);
 }
 
 static void onTimerStartCallback(uint16_t t) {

@@ -191,7 +191,20 @@ static void br_mr_drawBitmap(BridgeMap *o, uc_engine *uc) {
     uc_mem_read(uc, sp, &h, 4);
 
     LOG("ext call %s(0x%X, %d, %d, %u, %u)\n", o->name, bmp, x, y, w, h);
-    guiDrawBitmap(getMrpMemPtr(bmp), x, y, w, h);
+
+    /* mythroad：整屏缓冲上的局部刷新用 mr_screen_w 行距；子图/偏移指针用矩形宽度 w 作紧凑行距 */
+    uint32_t table_base = toMrpMemAddr(mr_table);
+    uint32_t screen_pixels_guest = 0;
+    (void)uc_mem_read(uc, table_base + 0x16C, &screen_pixels_guest, 4);
+    int32_t mr_sw = 0;
+    (void)uc_mem_read(uc, table_base + 0x170, &mr_sw, 4);
+    if (mr_sw <= 0 || mr_sw > 4096) {
+        mr_sw = SCREEN_WIDTH;
+    }
+    int32_t srcFromFullScreen = (bmp == screen_pixels_guest) ? 1 : 0;
+    int32_t srcPitch = srcFromFullScreen ? mr_sw : (int32_t)w;
+
+    guiDrawBitmap(getMrpMemPtr(bmp), (int32_t)x, (int32_t)y, (int32_t)w, (int32_t)h, srcPitch, srcFromFullScreen);
 }
 
 static void br_mr_open(BridgeMap *o, uc_engine *uc) {

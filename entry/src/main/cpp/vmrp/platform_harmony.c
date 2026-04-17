@@ -5,12 +5,14 @@
 
 #include "header/memory.h"
 
-static void (*g_onDraw)(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h) = NULL;
+static void (*g_onDraw)(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h, int32_t srcPitch,
+    int32_t srcFromFullScreen) = NULL;
 static void (*g_onTimerStart)(uint16_t t) = NULL;
 static void (*g_onTimerStop)() = NULL;
 
 void vmrp_setCallbacks(
-    void (*onDraw)(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h),
+    void (*onDraw)(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h, int32_t srcPitch,
+        int32_t srcFromFullScreen),
     void (*onTimerStart)(uint16_t t),
     void (*onTimerStop)()
 ) {
@@ -22,9 +24,10 @@ void vmrp_setCallbacks(
 static char *holdEditText = NULL;
 static int32_t editMaxSize = 0;
 
-void guiDrawBitmap(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h) {
+void guiDrawBitmap(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h, int32_t srcPitch,
+    int32_t srcFromFullScreen) {
     if (g_onDraw) {
-        g_onDraw(bmp, x, y, w, h);
+        g_onDraw(bmp, x, y, w, h, srcPitch, srcFromFullScreen);
     }
 }
 

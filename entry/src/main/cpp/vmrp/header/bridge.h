@@ -33,7 +33,8 @@ typedef struct BridgeMap {
 
 /* 需要外部实现的接口 */
 // 向屏幕输出图像
-extern void guiDrawBitmap(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h);
+extern void guiDrawBitmap(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h, int32_t srcPitch,
+    int32_t srcFromFullScreen);
 extern int32_t timerStart(uint16_t t);
 extern int32_t timerStop();
 extern int32_t editCreate(const char *title, const char *text, int32_t type, int32_t max_size);
