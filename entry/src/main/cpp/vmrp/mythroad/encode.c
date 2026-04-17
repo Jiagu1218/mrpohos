@@ -4,7 +4,9 @@
 #include "./include/mem.h"
 #include "./include/tables.h"
 #include "./include/other.h"
+#ifndef mrporting_h_included
 #include "./include/mrporting.h"
+#endif
 // ucs-2be与utf-16be基本是一样的，ucs2是固定一个字符两字节，而utf-16一个字符最大可以有4字节
 
 #ifdef USE_VM_C2U

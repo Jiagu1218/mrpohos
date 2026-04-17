@@ -4,15 +4,50 @@
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "./mythroad/include/dsm.h"
+#include "./gbk_conv.h"
 #include "./header/fileLib.h"
 #include "./header/memory.h"
 #include "./header/vmrp.h"
 #include "./header/debug.h"
 #include "./header/network.h"
+
+static int isPureAscii(const char *s) {
+    while (*s) {
+        if ((unsigned char)*s > 0x7f) return 0;
+        s++;
+    }
+    return 1;
+}
+
+static const char *gbkToUtf8(const char *gbk) {
+    static char buf[2048];
+    if (!gbk || isPureAscii(gbk)) return gbk;
+    unsigned short *ucs = gb_str_to_ucs2be((const unsigned char *)gbk, NULL);
+    if (!ucs) return gbk;
+    char *utf8 = ucs2be_str_to_utf8((const unsigned char *)ucs, NULL);
+    free(ucs);
+    if (!utf8) return gbk;
+    strncpy(buf, utf8, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+    free(utf8);
+    return buf;
+}
+
+static const char *utf8ToGbk(const char *utf8) {
+    static char buf[2048];
+    if (!utf8 || isPureAscii(utf8)) return utf8;
+    char *gb = utf8_str_to_gb((const unsigned char *)utf8, NULL);
+    if (!gb) return utf8;
+    strncpy(buf, gb, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+    free(gb);
+    return buf;
+}
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -158,7 +193,7 @@ static void br_mr_open(BridgeMap *o, uc_engine *uc) {
     uc_reg_read(uc, UC_ARM_REG_R0, &filename);
     uc_reg_read(uc, UC_ARM_REG_R1, &mode);
     char *filenameStr = getMrpMemPtr(filename);
-    int32_t ret = my_open(filenameStr, mode);
+    int32_t ret = my_open(gbkToUtf8(filenameStr), mode);
     LOG("ext call %s(0x%X[%s], 0x%X): %d\n", o->name, filename, filenameStr, mode, ret);
     SET_RET_V(ret);
 }
@@ -220,7 +255,7 @@ static void br_mr_getLen(BridgeMap *o, uc_engine *uc) {
     uc_reg_read(uc, UC_ARM_REG_R0, &filename);
     char *filenameStr = getMrpMemPtr(filename);
     LOG("ext call %s(%s)\n", o->name, filenameStr);
-    SET_RET_V(my_getLen(filenameStr));
+    SET_RET_V(my_getLen(gbkToUtf8(filenameStr)));
 }
 
 static void br_mr_remove(BridgeMap *o, uc_engine *uc) {
@@ -229,7 +264,7 @@ static void br_mr_remove(BridgeMap *o, uc_engine *uc) {
     uc_reg_read(uc, UC_ARM_REG_R0, &filename);
     char *filenameStr = getMrpMemPtr(filename);
     LOG("ext call %s(%s)\n", o->name, filenameStr);
-    SET_RET_V(my_remove(filenameStr));
+    SET_RET_V(my_remove(gbkToUtf8(filenameStr)));
 }
 
 static void br_mr_rename(BridgeMap *o, uc_engine *uc) {
@@ -240,7 +275,7 @@ static void br_mr_rename(BridgeMap *o, uc_engine *uc) {
     char *oldnameStr = getMrpMemPtr(oldname);
     char *newnameStr = getMrpMemPtr(newname);
     LOG("ext call %s(%s, %s)\n", o->name, oldnameStr, newnameStr);
-    SET_RET_V(my_rename(oldnameStr, newnameStr));
+    SET_RET_V(my_rename(gbkToUtf8(oldnameStr), gbkToUtf8(newnameStr)));
 }
 
 static void br_mr_mkDir(BridgeMap *o, uc_engine *uc) {
@@ -249,7 +284,7 @@ static void br_mr_mkDir(BridgeMap *o, uc_engine *uc) {
     uc_reg_read(uc, UC_ARM_REG_R0, &name);
     char *nameStr = getMrpMemPtr(name);
     LOG("ext call %s(%s)\n", o->name, nameStr);
-    SET_RET_V(my_mkDir(nameStr));
+    SET_RET_V(my_mkDir(gbkToUtf8(nameStr)));
 }
 
 static void br_mr_rmDir(BridgeMap *o, uc_engine *uc) {
@@ -258,7 +293,7 @@ static void br_mr_rmDir(BridgeMap *o, uc_engine *uc) {
     uc_reg_read(uc, UC_ARM_REG_R0, &name);
     char *nameStr = getMrpMemPtr(name);
     LOG("ext call %s(%s)\n", o->name, nameStr);
-    SET_RET_V(my_rmDir(nameStr));
+    SET_RET_V(my_rmDir(gbkToUtf8(nameStr)));
 }
 
 static uint64_t uptime_ms;
@@ -372,7 +407,7 @@ static void br_info(BridgeMap *o, uc_engine *uc) {
     LOG("ext call %s()\n", o->name);
     uint32_t filename;
     uc_reg_read(uc, UC_ARM_REG_R0, &filename);
-    SET_RET_V(my_info(getMrpMemPtr(filename)))
+    SET_RET_V(my_info(gbkToUtf8(getMrpMemPtr(filename))))
 }
 
 static void br_opendir(BridgeMap *o, uc_engine *uc) {
@@ -380,7 +415,7 @@ static void br_opendir(BridgeMap *o, uc_engine *uc) {
     LOG("ext call %s()\n", o->name);
     uint32_t name;
     uc_reg_read(uc, UC_ARM_REG_R0, &name);
-    SET_RET_V(my_opendir(getMrpMemPtr(name)))
+    SET_RET_V(my_opendir(gbkToUtf8(getMrpMemPtr(name))))
 }
 
 #define READDIR_SHARED_MEM_SIZE 128
@@ -400,7 +435,8 @@ static void br_readdir(BridgeMap *o, uc_engine *uc) {
 
     char *r = my_readdir(f);
     if (r != NULL) {
-        strncpy(readdirSharedMem, r, READDIR_SHARED_MEM_SIZE - 1);
+        const char *gb = utf8ToGbk(r);
+        strncpy(readdirSharedMem, gb, READDIR_SHARED_MEM_SIZE - 1);
         SET_RET_V(toMrpMemAddr(readdirSharedMem));
     } else {
         SET_RET_V((uint32_t)NULL);
@@ -1179,7 +1215,7 @@ uc_err bridge_init(uc_engine *uc) {
 #ifdef __EMSCRIPTEN__
     ((DSM_REQUIRE_FUNCS *)dsm_require_funcs)->flags = FLAG_USE_UTF8_FS;  // wasm文件系统是UTF8编码
 #else
-    ((DSM_REQUIRE_FUNCS *)dsm_require_funcs)->flags = FLAG_USE_UTF8_EDIT;  // windows下文件系统是GBK编码，编辑框暂时用复制粘贴代替（需要utf8编码）
+    ((DSM_REQUIRE_FUNCS *)dsm_require_funcs)->flags = FLAG_USE_UTF8_FS | FLAG_USE_UTF8_EDIT;  // HarmonyOS文件系统是UTF-8编码
 #endif
 
     mr_c_event = my_mallocExt(sizeof(event_t));

@@ -41,6 +41,19 @@ static napi_threadsafe_function g_timerStopTsfn = nullptr;
 static OHNativeWindow *g_nativeWindow = nullptr;
 static OH_NativeXComponent *g_xComponent = nullptr;
 static pthread_mutex_t g_windowMutex = PTHREAD_MUTEX_INITIALIZER;
+static napi_async_work g_timerAsyncWork = nullptr;
+static napi_value g_timerAsyncResource = nullptr;
+
+static void TimerExecute(napi_env env, void *data) {
+    timer();
+}
+
+static void TimerComplete(napi_env env, napi_status status, void *data) {
+    if (g_timerAsyncWork) {
+        napi_delete_async_work(env, g_timerAsyncWork);
+        g_timerAsyncWork = nullptr;
+    }
+}
 
 static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h) {
     pthread_mutex_lock(&g_windowMutex);
@@ -293,14 +306,18 @@ static napi_value NapiEvent(napi_env env, napi_callback_info info) {
 }
 
 static napi_value NapiTimer(napi_env env, napi_callback_info info) {
-    static int timerCount = 0;
-    int32_t ret = timer();
-    if (timerCount < 10) {
-        OH_LOG_INFO(LOG_APP, "NapiTimer: ret=%{public}d, count=%{public}d", ret, timerCount);
-        timerCount++;
+    if (g_timerAsyncWork) {
+        napi_value result;
+        napi_create_int32(env, MR_FAILED, &result);
+        return result;
     }
+    napi_value resourceName;
+    napi_create_string_utf8(env, "TimerWork", NAPI_AUTO_LENGTH, &resourceName);
+    napi_create_async_work(env, nullptr, resourceName, TimerExecute, TimerComplete, nullptr, &g_timerAsyncWork);
+    napi_queue_async_work(env, g_timerAsyncWork);
+
     napi_value result;
-    napi_create_int32(env, ret, &result);
+    napi_create_int32(env, 0, &result);
     return result;
 }
 

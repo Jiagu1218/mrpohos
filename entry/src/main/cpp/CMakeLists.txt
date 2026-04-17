@@ -23,6 +23,7 @@ set(VMRP_SOURCES
     ${VMRP_DIR}/rbtree.c
     ${VMRP_DIR}/utils.c
     ${VMRP_DIR}/platform_harmony.c
+    ${VMRP_DIR}/gbk_conv.c
 )
 
 include_directories(
