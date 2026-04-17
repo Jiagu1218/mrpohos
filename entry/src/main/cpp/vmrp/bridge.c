@@ -8,6 +8,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <hilog/log.h>
+
 #include "./mythroad/include/dsm.h"
 #include "./gbk_conv.h"
 #include "./header/fileLib.h"
@@ -15,6 +17,11 @@
 #include "./header/vmrp.h"
 #include "./header/debug.h"
 #include "./header/network.h"
+
+#undef LOG_DOMAIN
+#undef LOG_TAG
+#define LOG_DOMAIN 0x0001
+#define LOG_TAG "vmrp_boot"
 
 static int isPureAscii(const char *s) {
     while (*s) {
@@ -1215,7 +1222,7 @@ uc_err bridge_init(uc_engine *uc) {
 #ifdef __EMSCRIPTEN__
     ((DSM_REQUIRE_FUNCS *)dsm_require_funcs)->flags = FLAG_USE_UTF8_FS;  // wasm文件系统是UTF8编码
 #else
-    ((DSM_REQUIRE_FUNCS *)dsm_require_funcs)->flags = FLAG_USE_UTF8_FS;  // HarmonyOS文件系统是UTF-8编码
+    ((DSM_REQUIRE_FUNCS *)dsm_require_funcs)->flags = FLAG_USE_UTF8_FS | FLAG_USE_UTF8_EDIT;  // HarmonyOS文件系统是UTF-8编码
 #endif
 
     mr_c_event = my_mallocExt(sizeof(event_t));
@@ -1256,7 +1263,15 @@ static inline int32_t bridge_mr_event(uc_engine *uc, int32_t code, int32_t param
     mr_c_event->code = code;
     mr_c_event->p0 = param0;
     mr_c_event->p1 = param1;
-    return bridge_mr_extHelper(uc, 1, toMrpMemAddr(mr_c_event), sizeof(event_t));
+    if (code == DSM_INIT || code == MR_START_DSM) {
+        OH_LOG_INFO(LOG_APP, "vmrp_boot bridge_mr_event enter code=%{public}d p0=0x%{public}x p1=%{public}d", code, param0,
+            param1);
+    }
+    int32_t r = bridge_mr_extHelper(uc, 1, toMrpMemAddr(mr_c_event), sizeof(event_t));
+    if (code == DSM_INIT || code == MR_START_DSM) {
+        OH_LOG_INFO(LOG_APP, "vmrp_boot bridge_mr_event leave code=%{public}d ret=%{public}d", code, r);
+    }
+    return r;
 }
 
 // 执行网络通信的回调
@@ -1291,12 +1306,15 @@ int32_t bridge_dsm_mr_start_dsm(uc_engine *uc, char *filename, char *ext, char *
         perror(MUTEX_LOCK_FAIL);
         exit(EXIT_FAILURE);
     }
+    OH_LOG_INFO(LOG_APP, "vmrp_boot bridge_dsm_mr_start_dsm mutex acquired");
 
     mr_start_dsm_param->filename = (char *)copyStrToMrp(filename);
     mr_start_dsm_param->ext = (char *)copyStrToMrp(ext);
     mr_start_dsm_param->entry = entry ? (char *)copyStrToMrp(entry) : NULL;
 
+    OH_LOG_INFO(LOG_APP, "vmrp_boot bridge_dsm_mr_start_dsm calling MR_START_DSM (may block until uc returns)");
     int32_t v = bridge_mr_event(uc, MR_START_DSM, toMrpMemAddr(mr_start_dsm_param), 0);
+    OH_LOG_INFO(LOG_APP, "vmrp_boot bridge_dsm_mr_start_dsm MR_START_DSM returned v=%{public}d", v);
 
     my_freeExt(getMrpMemPtr((uint32_t)mr_start_dsm_param->filename));
     mr_start_dsm_param->filename = NULL;
@@ -1375,7 +1393,9 @@ int32_t bridge_dsm_init(uc_engine *uc) {
         perror(MUTEX_LOCK_FAIL);
         exit(EXIT_FAILURE);
     }
+    OH_LOG_INFO(LOG_APP, "vmrp_boot bridge_dsm_init mutex acquired, calling DSM_INIT");
     int32_t v = bridge_mr_event(uc, DSM_INIT, toMrpMemAddr(dsm_require_funcs), 0);
+    OH_LOG_INFO(LOG_APP, "vmrp_boot bridge_dsm_init DSM_INIT returned v=%{public}d (expect VMRP_VER match for success)", v);
 
     if (pthread_mutex_unlock(&mutex) != 0) {
         perror(MUTEX_UNLOCK_FAIL);

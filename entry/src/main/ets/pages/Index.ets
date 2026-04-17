@@ -116,6 +116,12 @@ struct Index {
 
     let sandboxPath = AppStorage.get<string>('sandboxPath') || '/data/storage/el2/base';
 
+    // 须在 init/start 之前注册：MRP 会通过 timerStart() 触发 native 回调，未注册时 tsfn 为空且刷屏 HiLog
+    testNapi.onTimerStop((): void => {
+    });
+    testNapi.onTimerStart((_t: number): void => {
+    });
+
     let ret = testNapi.init(sandboxPath);
     console.info('vmrp init result: ' + ret);
 

@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <sys/mman.h>
 #include <poll.h>
+#include <chrono>
 #include <hilog/log.h>
 
 #undef LOG_DOMAIN
@@ -34,26 +35,12 @@ static void logNative(const char *fmt, ...) {
     OH_LOG_INFO(LOG_APP, "%{public}s", buf);
 }
 
-static napi_env g_env = nullptr;
 static napi_threadsafe_function g_timerStartTsfn = nullptr;
 static napi_threadsafe_function g_timerStopTsfn = nullptr;
 
 static OHNativeWindow *g_nativeWindow = nullptr;
 static OH_NativeXComponent *g_xComponent = nullptr;
 static pthread_mutex_t g_windowMutex = PTHREAD_MUTEX_INITIALIZER;
-static napi_async_work g_timerAsyncWork = nullptr;
-static napi_value g_timerAsyncResource = nullptr;
-
-static void TimerExecute(napi_env env, void *data) {
-    timer();
-}
-
-static void TimerComplete(napi_env env, napi_status status, void *data) {
-    if (g_timerAsyncWork) {
-        napi_delete_async_work(env, g_timerAsyncWork);
-        g_timerAsyncWork = nullptr;
-    }
-}
 
 static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h) {
     pthread_mutex_lock(&g_windowMutex);
@@ -148,8 +135,21 @@ static void onDrawCallback(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32
 }
 
 static void onTimerStartCallback(uint16_t t) {
-    OH_LOG_INFO(LOG_APP, "onTimerStartCallback: t=%{public}d, tsfn=%{public}p", (int)t, (void*)g_timerStartTsfn);
-    if (!g_timerStartTsfn) return;
+    if (!g_timerStartTsfn) {
+        static int s_warnedMissingTsfn;
+        if (!s_warnedMissingTsfn) {
+            s_warnedMissingTsfn = 1;
+            OH_LOG_WARN(LOG_APP,
+                "onTimerStartCallback: MRP timerStart(%{public}d) but JS onTimerStart not registered yet (register before init/start)",
+                (int)t);
+        }
+        return;
+    }
+    static int16_t s_lastLoggedT = -1;
+    if ((int)t != s_lastLoggedT) {
+        s_lastLoggedT = (int16_t)t;
+        OH_LOG_INFO(LOG_APP, "onTimerStartCallback: t=%{public}d (MRP timerStart; log on change only)", (int)t);
+    }
     uint32_t *val = (uint32_t *)malloc(sizeof(uint32_t));
     *val = (uint32_t)t;
     napi_call_threadsafe_function(g_timerStartTsfn, val, napi_tsfn_nonblocking);
@@ -232,12 +232,32 @@ static void DispatchTouchEventCB(OH_NativeXComponent *component, void *window) {
         touchLogCount++;
     }
 
+    // MOVE 高频时每帧都 event()→uc_emu_start 会占满主线程，易触发 OnVsyncTimeOut（~16ms 一帧预算）。
+    // 仅对 MOVE 做时间节流；DOWN/UP 始终投递，避免起点/终点丢失。
+    static bool s_moveThrottleArmed = false;
+    static std::chrono::steady_clock::time_point s_lastMoveSent{};
     int32_t code = -1;
     switch (tp->type) {
-        case OH_NATIVEXCOMPONENT_DOWN:  code = 2; break;
-        case OH_NATIVEXCOMPONENT_UP:    code = 3; break;
-        case OH_NATIVEXCOMPONENT_MOVE:  code = 12; break;
-        default: return;
+        case OH_NATIVEXCOMPONENT_DOWN:
+            s_moveThrottleArmed = false;
+            code = 2;
+            break;
+        case OH_NATIVEXCOMPONENT_UP:
+            s_moveThrottleArmed = false;
+            code = 3;
+            break;
+        case OH_NATIVEXCOMPONENT_MOVE: {
+            const auto now = std::chrono::steady_clock::now();
+            if (s_moveThrottleArmed && now - s_lastMoveSent < std::chrono::milliseconds(25)) {
+                return;
+            }
+            s_moveThrottleArmed = true;
+            s_lastMoveSent = now;
+            code = 12;
+            break;
+        }
+        default:
+            return;
     }
 
     event(code, mx, my);
@@ -289,11 +309,14 @@ static napi_value NapiStart(napi_env env, napi_callback_info info) {
 
     int32_t ret = MR_FAILED;
     if (uc) {
+        // 分段日志：卡顿时看最后一条即可区分 init vs start_dsm（后者多为 uc_emu_start 不归）
+        OH_LOG_INFO(LOG_APP, "vmrp_boot NapiStart step=1 before bridge_dsm_init");
         int32_t initRet = bridge_dsm_init(uc);
-        OH_LOG_INFO(LOG_APP, "bridge_dsm_init ret=%{public}d", initRet);
+        OH_LOG_INFO(LOG_APP, "vmrp_boot NapiStart step=2 after bridge_dsm_init ret=%{public}d", initRet);
         if (initRet == MR_SUCCESS) {
+            OH_LOG_INFO(LOG_APP, "vmrp_boot NapiStart step=3 before bridge_dsm_mr_start_dsm");
             ret = bridge_dsm_mr_start_dsm(uc, filename, extName, NULL);
-            OH_LOG_INFO(LOG_APP, "bridge_dsm_mr_start_dsm ret=%{public}d", ret);
+            OH_LOG_INFO(LOG_APP, "vmrp_boot NapiStart step=4 after bridge_dsm_mr_start_dsm ret=%{public}d", ret);
         }
     } else {
         OH_LOG_ERROR(LOG_APP, "NapiStart: uc is NULL!");
@@ -325,18 +348,11 @@ static napi_value NapiEvent(napi_env env, napi_callback_info info) {
 }
 
 static napi_value NapiTimer(napi_env env, napi_callback_info info) {
-    if (g_timerAsyncWork) {
-        napi_value result;
-        napi_create_int32(env, MR_FAILED, &result);
-        return result;
-    }
-    napi_value resourceName;
-    napi_create_string_utf8(env, "TimerWork", NAPI_AUTO_LENGTH, &resourceName);
-    napi_create_async_work(env, nullptr, resourceName, TimerExecute, TimerComplete, nullptr, &g_timerAsyncWork);
-    napi_queue_async_work(env, g_timerAsyncWork);
-
+    // 必须在调用 NapiTimer 的线程上同步执行：此前用 napi_async_work 会在 FFRT 工作线程跑 timer()，
+    // 客态 drawBitmap 会误在非 UI 线程操作 NativeWindow，易触发 OnVsyncTimeOut / ProcessJank。
+    int32_t ret = timer();
     napi_value result;
-    napi_create_int32(env, 0, &result);
+    napi_create_int32(env, ret, &result);
     return result;
 }
 
