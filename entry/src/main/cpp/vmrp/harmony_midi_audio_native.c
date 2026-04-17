@@ -270,7 +270,16 @@ int32 harmony_midi_play(const uint8_t *data, uint32 len, int32 loop) {
     }
     g_midi_owned = copy;
 
-    fluid_player_set_loop(g_player, loop ? 1 : 0);
+    /*
+     * FluidSynth：fluid_player_set_loop 的 loop 是「剩余循环次数」，-1 才表示无限循环；
+     * 传 1 只会在首尾再接播约一遍后停止，与 mythroad mr_playSound(loop=1) 期望的持续循环不一致。
+     */
+    {
+        const int fluid_loop = (loop != 0) ? -1 : 0;
+        if (fluid_player_set_loop(g_player, fluid_loop) != FLUID_OK) {
+            OH_LOG_WARN(LOG_APP, "fluid_player_set_loop(%{public}d) failed", fluid_loop);
+        }
+    }
     if (fluid_player_play(g_player) != FLUID_OK) {
         harmony_stop_player_locked();
         pthread_mutex_unlock(&g_lock);

@@ -13,6 +13,7 @@ void harmony_midi_shutdown(void);
 
 /**
  * 播放一帧 MIDI 字节（SMF）。在返回前会拷贝 data，可安全传入 getMrpMemPtr 结果。
+ * loop：0 单次；非 0 时映射为 FluidSynth 无限循环（fluid_player_set_loop(..., -1)）。
  * 新 play 会打断当前 MIDI（与 design 一致）。
  * stub 下恒返回 MR_FAILED。
  */
