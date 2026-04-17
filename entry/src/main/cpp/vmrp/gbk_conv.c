@@ -121,19 +121,25 @@ char *utf8_str_to_gb(const unsigned char *utf8, unsigned int *out_len) {
     const unsigned char *s = utf8;
     unsigned char *gb, *mem;
 
+    /* 先算输出长度：遇 4 字节 UTF-8（emoji 等）或非法序列用单字节 '?'，避免原实现 break 导致整段被截断 */
+    s = utf8;
     while (*s) {
         if (*s < 0x80) {
             len += 1;
             s += 1;
-            continue;
-        } else if ((*s & 0xe0) == 0xc0) {
+        } else if ((*s & 0xe0) == 0xc0 && (s[1] & 0xc0) == 0x80) {
+            len += 2;
             s += 2;
-        } else if ((*s & 0xf0) == 0xe0) {
+        } else if ((*s & 0xf0) == 0xe0 && (s[1] & 0xc0) == 0x80 && (s[2] & 0xc0) == 0x80) {
+            len += 2;
             s += 3;
+        } else if ((*s & 0xf8) == 0xf0 && (s[1] & 0xc0) == 0x80 && (s[2] & 0xc0) == 0x80 && (s[3] & 0xc0) == 0x80) {
+            len += 1;
+            s += 4;
         } else {
-            break;
+            len += 1;
+            s += 1;
         }
-        len += 2;
     }
     mem = (unsigned char *)malloc(len);
     if (out_len) *out_len = len;
@@ -144,17 +150,30 @@ char *utf8_str_to_gb(const unsigned char *utf8, unsigned int *out_len) {
         if (*s < 0x80) {
             *gb++ = *s++;
             continue;
-        } else if ((*s & 0xe0) == 0xc0) {
+        }
+        if ((*s & 0xe0) == 0xc0 && (s[1] & 0xc0) == 0x80) {
             c = ucs2le_char_to_gb(((s[0] & 0x1f) << 6) | (s[1] & 0x3f));
             s += 2;
-        } else if ((*s & 0xf0) == 0xe0) {
+            *gb++ = (unsigned char)(c >> 8);
+            *gb++ = (unsigned char)(c & 0xff);
+            continue;
+        }
+        if ((*s & 0xf0) == 0xe0 && (s[1] & 0xc0) == 0x80 && (s[2] & 0xc0) == 0x80) {
             c = ucs2le_char_to_gb(((s[0] & 0x0f) << 12) | ((s[1] & 0x3f) << 6) | (s[2] & 0x3f));
             s += 3;
-        } else {
-            break;
+            *gb++ = (unsigned char)(c >> 8);
+            *gb++ = (unsigned char)(c & 0xff);
+            continue;
         }
-        *gb++ = (unsigned char)(c >> 8);
-        *gb++ = (unsigned char)(c & 0xff);
+        if ((*s & 0xf8) == 0xf0 && (s[1] & 0xc0) == 0x80 && (s[2] & 0xc0) == 0x80 && (s[3] & 0xc0) == 0x80) {
+            /* 增补平面：GBK/当前表无法稳定表达，用 ASCII '?' 占位，保证后续字符不丢 */
+            s += 4;
+            *gb++ = '?';
+            continue;
+        }
+        /* 非法 UTF-8 或残缺多字节：吞 1 字节并占位 */
+        s += 1;
+        *gb++ = '?';
     }
     *gb = '\0';
     return (char *)mem;
