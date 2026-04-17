@@ -32,6 +32,9 @@ async function copyRawfileToSandbox(context: Context, sandboxPath: string) {
   ];
   let mythroadFiles = await collectRawfiles(context, 'mythroad');
   files = files.concat(mythroadFiles);
+  /* NAPI harmony_midi_init 使用 <filesDir>/vmrp/default.sf2，须从 rawfile/vmrp 拷入沙箱 */
+  let vmrpFiles = await collectRawfiles(context, 'vmrp');
+  files = files.concat(vmrpFiles);
 
   for (let file of files) {
     let destPath = sandboxPath + '/' + file;

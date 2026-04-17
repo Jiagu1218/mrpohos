@@ -1,0 +1,12 @@
+prefix=/mnt/d/OHOS/BuildThirdParty/lycium/usr/fluidsynth/arm64-v8a
+exec_prefix=/mnt/d/OHOS/BuildThirdParty/lycium/usr/fluidsynth/arm64-v8a
+libdir=/mnt/d/OHOS/BuildThirdParty/lycium/usr/fluidsynth/arm64-v8a/lib
+includedir=/mnt/d/OHOS/BuildThirdParty/lycium/usr/fluidsynth/arm64-v8a/include
+
+Name: FLAC
+Description: Free Lossless Audio Codec Library
+Version: 
+Requires.private: 
+Libs: -L${libdir} -lFLAC
+Libs.private: -lm
+Cflags: -I${includedir}

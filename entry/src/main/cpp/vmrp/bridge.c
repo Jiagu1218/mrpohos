@@ -18,6 +18,10 @@
 #include "./header/debug.h"
 #include "./header/network.h"
 
+#ifndef __EMSCRIPTEN__
+#include "harmony_midi_audio.h"
+#endif
+
 #undef LOG_DOMAIN
 #undef LOG_TAG
 #define LOG_DOMAIN 0x0001
@@ -867,7 +871,20 @@ static void br_mr_playSound(BridgeMap *o, uc_engine *uc) {
 #ifdef __EMSCRIPTEN__
     SET_RET_V(js_mr_playSound(type, getMrpMemPtr(data), dataLen, loop));
 #else
-    SET_RET_V(MR_SUCCESS);
+    {
+        int32_t ret;
+        if (type == MR_SOUND_MIDI) {
+            if (dataLen <= 0) {
+                ret = MR_FAILED;
+            } else {
+                void *p = getMrpMemPtr((uint32_t)data);
+                ret = p ? harmony_midi_play((const uint8_t *)p, (uint32)dataLen, loop) : MR_FAILED;
+            }
+        } else {
+            ret = MR_FAILED;
+        }
+        SET_RET_V(ret);
+    }
 #endif
 }
 
@@ -891,7 +908,10 @@ static void br_mr_stopSound(BridgeMap *o, uc_engine *uc) {
 #ifdef __EMSCRIPTEN__
     SET_RET_V(js_mr_stopSound(type));
 #else
-    SET_RET_V(MR_SUCCESS);
+    {
+        int32_t ret = (type == MR_SOUND_MIDI) ? harmony_midi_stop() : MR_SUCCESS;
+        SET_RET_V(ret);
+    }
 #endif
 }
 

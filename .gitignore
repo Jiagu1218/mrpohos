@@ -9,4 +9,6 @@
 /.clang-format
 /.clang-tidy
 **/.test
+# CMake POST_BUILD copies FluidSynth prebuilts here for HAP packaging
+/entry/src/main/libs
 /.appanalyzer

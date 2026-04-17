@@ -1,0 +1,12 @@
+prefix=/mnt/d/OHOS/BuildThirdParty/lycium/usr/fluidsynth/arm64-v8a
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: FluidSynth
+Description: Software SoundFont synth
+Version: 2.3.6
+Requires.private: glib-2.0 gthread-2.0 sndfile libinstpatch-1.0
+Libs: -L${libdir} -lfluidsynth
+Libs.private: -lm 
+Cflags: -I${includedir}

@@ -1,0 +1,16 @@
+# Opus codec reference implementation pkg-config file
+
+prefix=/mnt/d/OHOS/BuildThirdParty/lycium/usr/fluidsynth/arm64-v8a
+exec_prefix=/mnt/d/OHOS/BuildThirdParty/lycium/usr/fluidsynth/arm64-v8a
+libdir=/mnt/d/OHOS/BuildThirdParty/lycium/usr/fluidsynth/arm64-v8a/lib
+includedir=/mnt/d/OHOS/BuildThirdParty/lycium/usr/fluidsynth/arm64-v8a/include
+
+Name: Opus
+Description: Opus IETF audio codec ( build)
+URL: https://opus-codec.org/
+Version: 0.8.0
+Requires:
+Conflicts:
+Libs: -L/mnt/d/OHOS/BuildThirdParty/lycium/usr/fluidsynth/arm64-v8a/lib -lopus
+Libs.private: -lm
+Cflags: -I/mnt/d/OHOS/BuildThirdParty/lycium/usr/fluidsynth/arm64-v8a/include/opus

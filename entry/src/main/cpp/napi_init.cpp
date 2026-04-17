@@ -21,6 +21,7 @@ extern "C" {
 #include "vmrp/header/vmrp.h"
 #include "vmrp/header/bridge.h"
 #include "vmrp/header/fileLib.h"
+#include "vmrp/harmony_midi_audio.h"
 #include "vmrp/platform_harmony.h"
 }
 
@@ -373,6 +374,16 @@ static napi_value NapiInit(napi_env env, napi_callback_info info) {
     printf("NapiInit: sandboxPath='%s'\n", sandboxPath);
     OH_LOG_INFO(LOG_APP, "NapiInit: sandboxPath='%{public}s'", sandboxPath);
     fileLib_setSandboxPath(sandboxPath);
+
+    size_t sbLen = strlen(sandboxPath);
+    char *sf2Path = (char *)malloc(sbLen + 48u);
+    if (sf2Path != nullptr) {
+        snprintf(sf2Path, sbLen + 48u, "%s/vmrp/default.sf2", sandboxPath);
+        int32_t midiInit = harmony_midi_init(sf2Path);
+        OH_LOG_INFO(LOG_APP, "harmony_midi_init path='%{public}s' ret=%{public}d", sf2Path, midiInit);
+        free(sf2Path);
+    }
+
     free(sandboxPath);
 
     resetMrpNativeDrawState();

@@ -8,7 +8,7 @@
     },
     "externalNativeOptions": {
       "path": "./src/main/cpp/CMakeLists.txt",
-      "arguments": "",
+      "arguments": "-DVMRP_NATIVE_MIDI=ON",
       "cppFlags": "",
       "abiFilters": [
         "arm64-v8a",

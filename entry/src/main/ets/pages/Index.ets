@@ -1,3 +1,6 @@
+import { common } from '@kit.AbilityKit';
+import { fileIo as fs, picker } from '@kit.CoreFileKit';
+import { promptAction } from '@kit.ArkUI';
 import testNapiImport from 'libentry.so';
 
 /** 与 libentry NAPI 导出一致（默认导入的类型推断在部分工具链下不完整，故显式收窄）。 */
@@ -12,13 +15,45 @@ interface MrpNativeBindings {
   setEditResult: (text: string) => void;
 }
 
-const testNapi = testNapiImport as MrpNativeBindings;
+/** libentry 若因缺依赖 .so 未加载成功，导入值为 undefined，须避免直接访问成员导致进程退出。 */
+function getMrpNative(): MrpNativeBindings | undefined {
+  return testNapiImport as MrpNativeBindings | undefined;
+}
 
 const MR_KEY_PRESS = 0;
 const MR_KEY_RELEASE = 1;
 const MR_MOUSE_DOWN = 2;
 const MR_MOUSE_UP = 3;
 const MR_MOUSE_MOVE = 12;
+
+/** mythroad `mrporting.h` 物理键码（MR_KEY_PRESS/MR_KEY_RELEASE 的 param0），与 MR_KEY_0… 枚举顺序一致 */
+const MR_KEYCODE_0 = 0;
+const MR_KEYCODE_1 = 1;
+const MR_KEYCODE_2 = 2;
+const MR_KEYCODE_3 = 3;
+const MR_KEYCODE_4 = 4;
+const MR_KEYCODE_5 = 5;
+const MR_KEYCODE_6 = 6;
+const MR_KEYCODE_7 = 7;
+const MR_KEYCODE_8 = 8;
+const MR_KEYCODE_9 = 9;
+const MR_KEYCODE_STAR = 10;
+const MR_KEYCODE_POUND = 11;
+const MR_KEYCODE_UP = 12;
+const MR_KEYCODE_DOWN = 13;
+const MR_KEYCODE_LEFT = 14;
+const MR_KEYCODE_RIGHT = 15;
+const MR_KEYCODE_POWER = 16;
+const MR_KEYCODE_SOFTLEFT = 17;
+const MR_KEYCODE_SOFTRIGHT = 18;
+const MR_KEYCODE_SEND = 19;
+const MR_KEYCODE_SELECT = 20;
+const MR_KEYCODE_VOLUME_UP = 21;
+const MR_KEYCODE_VOLUME_DOWN = 22;
+const MR_KEYCODE_CLEAR = 23;
+const MR_KEYCODE_A = 24;
+const MR_KEYCODE_B = 25;
+const MR_KEYCODE_CAPTURE = 26;
 
 const MR_DIALOG_EVENT = 6;
 const MR_DIALOG_KEY_OK = 0;
@@ -29,6 +64,45 @@ const MR_EDIT_PASSWORD = 2;
 
 const SCREEN_WIDTH = 240;
 const SCREEN_HEIGHT = 320;
+
+function mrpFileNameFromUri(uri: string): string {
+  const noQuery = uri.split('?')[0];
+  let segment = noQuery.substring(noQuery.lastIndexOf('/') + 1);
+  try {
+    segment = decodeURIComponent(segment);
+  } catch (_e) {
+  }
+  return segment;
+}
+
+async function copyPickerUriToMythroad(srcUri: string, sandboxPath: string): Promise<string> {
+  const mythroadDir = `${sandboxPath}/mythroad`;
+  if (!fs.accessSync(mythroadDir)) {
+    fs.mkdirSync(mythroadDir, true);
+  }
+  let baseName = mrpFileNameFromUri(srcUri);
+  if (baseName.length === 0 || !baseName.toLowerCase().endsWith('.mrp')) {
+    baseName = `import_${Date.now().toString()}.mrp`;
+  }
+  const destPath = `${mythroadDir}/${baseName}`;
+  const chunkSize = 256 * 1024;
+  const src = fs.openSync(srcUri, fs.OpenMode.READ_ONLY);
+  const dst = fs.openSync(destPath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+  try {
+    const buf = new ArrayBuffer(chunkSize);
+    while (true) {
+      const n = fs.readSync(src.fd, buf, { offset: 0, length: chunkSize });
+      if (n <= 0) {
+        break;
+      }
+      fs.writeSync(dst.fd, buf, { offset: 0, length: n });
+    }
+  } finally {
+    fs.closeSync(src);
+    fs.closeSync(dst);
+  }
+  return destPath;
+}
 
 function mrpUnicodeCharCount(s: string): number {
   let n = 0;
@@ -154,11 +228,11 @@ struct Index {
       maxSize: $editDlgMax,
       editType: $editDlgType,
       onConfirm: (): void => {
-        testNapi.setEditResult(this.editDlgText);
-        testNapi.event(MR_DIALOG_EVENT, MR_DIALOG_KEY_OK, 0);
+        getMrpNative()?.setEditResult(this.editDlgText);
+        getMrpNative()?.event(MR_DIALOG_EVENT, MR_DIALOG_KEY_OK, 0);
       },
       onCancel: (): void => {
-        testNapi.event(MR_DIALOG_EVENT, MR_DIALOG_KEY_CANCEL, 0);
+        getMrpNative()?.event(MR_DIALOG_EVENT, MR_DIALOG_KEY_CANCEL, 0);
       },
     });
   }
@@ -173,7 +247,7 @@ struct Index {
         this.MrpEditDialogBuilder();
       },
       cancel: (): void => {
-        testNapi.event(MR_DIALOG_EVENT, MR_DIALOG_KEY_CANCEL, 0);
+        getMrpNative()?.event(MR_DIALOG_EVENT, MR_DIALOG_KEY_CANCEL, 0);
       },
       autoCancel: true,
       alignment: DialogAlignment.Center,
@@ -203,69 +277,248 @@ struct Index {
       .width('100%')
       .layoutWeight(1)
 
-      Row() {
-        Button('←')
-          .width(60)
-          .height(40)
-          .onClick(() => testNapi.event(MR_KEY_PRESS, 15, 0))
-          .gesture(
-            LongPressGesture()
-              .onAction(() => {
+      Scroll() {
+        Column({ space: 4 }) {
+          Row() {
+            Button('←')
+              .width(56)
+              .height(36)
+              .fontSize(14)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_LEFT);
               })
-              .onActionEnd(() => testNapi.event(MR_KEY_RELEASE, 15, 0))
-          )
-        Button('↑')
-          .width(60)
-          .height(40)
-          .onClick(() => {
-            testNapi.event(MR_KEY_PRESS, 18, 0);
-            setTimeout(() => testNapi.event(MR_KEY_RELEASE, 18, 0), 100);
-          })
-        Button('↓')
-          .width(60)
-          .height(40)
-          .onClick(() => {
-            testNapi.event(MR_KEY_PRESS, 19, 0);
-            setTimeout(() => testNapi.event(MR_KEY_RELEASE, 19, 0), 100);
-          })
-        Button('→')
-          .width(60)
-          .height(40)
-          .onClick(() => {
-            testNapi.event(MR_KEY_PRESS, 20, 0);
-            setTimeout(() => testNapi.event(MR_KEY_RELEASE, 20, 0), 100);
-          })
-      }
-      .width('100%')
-      .justifyContent(FlexAlign.SpaceEvenly)
-      .padding(5)
+            Button('↑')
+              .width(56)
+              .height(36)
+              .fontSize(14)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_UP);
+              })
+            Button('↓')
+              .width(56)
+              .height(36)
+              .fontSize(14)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_DOWN);
+              })
+            Button('→')
+              .width(56)
+              .height(36)
+              .fontSize(14)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_RIGHT);
+              })
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.SpaceEvenly)
 
-      Row() {
-        Button('左')
-          .width(80)
-          .height(40)
-          .onClick(() => {
-            testNapi.event(MR_KEY_PRESS, 21, 0);
-            setTimeout(() => testNapi.event(MR_KEY_RELEASE, 21, 0), 100);
-          })
-        Button('OK')
-          .width(80)
-          .height(40)
-          .onClick(() => {
-            testNapi.event(MR_KEY_PRESS, 22, 0);
-            setTimeout(() => testNapi.event(MR_KEY_RELEASE, 22, 0), 100);
-          })
-        Button('右')
-          .width(80)
-          .height(40)
-          .onClick(() => {
-            testNapi.event(MR_KEY_PRESS, 23, 0);
-            setTimeout(() => testNapi.event(MR_KEY_RELEASE, 23, 0), 100);
-          })
+          Row() {
+            Button('左软')
+              .width(72)
+              .height(36)
+              .fontSize(13)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_SOFTLEFT);
+              })
+            Button('确认')
+              .width(72)
+              .height(36)
+              .fontSize(13)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_SELECT);
+              })
+            Button('右软')
+              .width(72)
+              .height(36)
+              .fontSize(13)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_SOFTRIGHT);
+              })
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.SpaceEvenly)
+
+          Row() {
+            Button('*')
+              .width(56)
+              .height(36)
+              .fontSize(14)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_STAR);
+              })
+            Button('0')
+              .width(56)
+              .height(36)
+              .fontSize(14)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_0);
+              })
+            Button('#')
+              .width(56)
+              .height(36)
+              .fontSize(14)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_POUND);
+              })
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.SpaceEvenly)
+
+          Row() {
+            Button('1')
+              .width(48)
+              .height(34)
+              .fontSize(13)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_1);
+              })
+            Button('2')
+              .width(48)
+              .height(34)
+              .fontSize(13)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_2);
+              })
+            Button('3')
+              .width(48)
+              .height(34)
+              .fontSize(13)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_3);
+              })
+            Button('4')
+              .width(48)
+              .height(34)
+              .fontSize(13)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_4);
+              })
+            Button('5')
+              .width(48)
+              .height(34)
+              .fontSize(13)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_5);
+              })
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.SpaceEvenly)
+
+          Row() {
+            Button('6')
+              .width(48)
+              .height(34)
+              .fontSize(13)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_6);
+              })
+            Button('7')
+              .width(48)
+              .height(34)
+              .fontSize(13)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_7);
+              })
+            Button('8')
+              .width(48)
+              .height(34)
+              .fontSize(13)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_8);
+              })
+            Button('9')
+              .width(48)
+              .height(34)
+              .fontSize(13)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_9);
+              })
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.SpaceEvenly)
+
+          Row() {
+            Button('挂机')
+              .layoutWeight(1)
+              .height(34)
+              .fontSize(11)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_POWER);
+              })
+            Button('接听')
+              .layoutWeight(1)
+              .height(34)
+              .fontSize(11)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_SEND);
+              })
+            Button('清除')
+              .layoutWeight(1)
+              .height(34)
+              .fontSize(11)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_CLEAR);
+              })
+            Button('拍照')
+              .layoutWeight(1)
+              .height(34)
+              .fontSize(11)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_CAPTURE);
+              })
+          }
+          .width('100%')
+
+          Row() {
+            Button('音量+')
+              .layoutWeight(1)
+              .height(34)
+              .fontSize(12)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_VOLUME_UP);
+              })
+            Button('音量−')
+              .layoutWeight(1)
+              .height(34)
+              .fontSize(12)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_VOLUME_DOWN);
+              })
+            Button('A')
+              .layoutWeight(1)
+              .height(34)
+              .fontSize(12)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_A);
+              })
+            Button('B')
+              .layoutWeight(1)
+              .height(34)
+              .fontSize(12)
+              .onClick((): void => {
+                this.mrpKeyTap(MR_KEYCODE_B);
+              })
+          }
+          .width('100%')
+
+          Row() {
+            Button('选择 .mrp 导入 mythroad')
+              .layoutWeight(1)
+              .height(40)
+              .fontSize(13)
+              .margin({ left: 8, right: 8, bottom: 6 })
+              .onClick((): void => {
+                void this.pickMrpIntoMythroad();
+              })
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.Center)
+        }
+        .width('100%')
       }
-      .width('100%')
-      .justifyContent(FlexAlign.SpaceEvenly)
-      .padding(5)
+      .layoutWeight(1)
+      .scrollBar(BarState.Auto)
+      .edgeEffect(EdgeEffect.Spring)
     }
     .width('100%')
     .height('100%')
@@ -286,7 +539,14 @@ struct Index {
 
     let sandboxPath = AppStorage.get<string>('sandboxPath') || '/data/storage/el2/base';
 
-    testNapi.onEditRequest((title: string, text: string, type: number, maxSize: number): void => {
+    const napi = getMrpNative();
+    if (!napi) {
+      console.error('libentry.so 未加载（常见原因：HAP 中缺少 libfluidsynth.so.3 等依赖 .so）');
+      this.initialized = true;
+      return;
+    }
+
+    napi.onEditRequest((title: string, text: string, type: number, maxSize: number): void => {
       this.editDlgGen++;
       this.editDlgTitle = title;
       this.editDlgText = text;
@@ -299,26 +559,38 @@ struct Index {
 
     // 须在 init/start 之前注册：MRP 会通过 timerStart(t) 通知平台，平台须在 t ms 后调用一次 timer()（mr_timer）。
     // 若此处为空且用短间隔 setInterval 调 timer()，会在远小于 t 时误触发，表现为「几秒对话框一闪就关」。
-    testNapi.onTimerStop((): void => {
+    napi.onTimerStop((): void => {
       this.clearMrpTimerTimeout();
     });
-    testNapi.onTimerStart((t: number): void => {
+    napi.onTimerStart((t: number): void => {
       this.clearMrpTimerTimeout();
       this.mrpTimerTimeoutId = setTimeout((): void => {
         this.mrpTimerTimeoutId = -1;
-        testNapi.timer();
+        napi.timer();
       }, t);
     });
 
-    let ret = testNapi.init(sandboxPath);
+    let ret = napi.init(sandboxPath);
     console.info('vmrp init result: ' + ret);
 
     if (ret === 0) {
-      let startRet = testNapi.start('dsm_gm.mrp', 'start.mr');
+      let startRet = napi.start('dsm_gm.mrp', 'start.mr');
       console.info('vmrp start result: ' + startRet);
     }
 
     this.initialized = true;
+  }
+
+  /** 短按：按下后 holdMs 毫秒发抬起，与 mythroad 键程一致 */
+  private mrpKeyTap(key: number, holdMs: number = 90): void {
+    const n = getMrpNative();
+    if (!n) {
+      return;
+    }
+    n.event(MR_KEY_PRESS, key, 0);
+    setTimeout((): void => {
+      getMrpNative()?.event(MR_KEY_RELEASE, key, 0);
+    }, holdMs);
   }
 
   private handleTouch(event: TouchEvent) {
@@ -341,15 +613,19 @@ struct Index {
       my = SCREEN_HEIGHT - 1;
     }
 
+    const napi = getMrpNative();
+    if (!napi) {
+      return;
+    }
     switch (event.type) {
       case TouchType.Down:
-        testNapi.event(MR_MOUSE_DOWN, mx, my);
+        napi.event(MR_MOUSE_DOWN, mx, my);
         break;
       case TouchType.Move:
-        testNapi.event(MR_MOUSE_MOVE, mx, my);
+        napi.event(MR_MOUSE_MOVE, mx, my);
         break;
       case TouchType.Up:
-        testNapi.event(MR_MOUSE_UP, mx, my);
+        napi.event(MR_MOUSE_UP, mx, my);
         break;
     }
   }
@@ -358,6 +634,32 @@ struct Index {
     if (this.mrpTimerTimeoutId !== -1) {
       clearTimeout(this.mrpTimerTimeoutId);
       this.mrpTimerTimeoutId = -1;
+    }
+  }
+
+  private async pickMrpIntoMythroad(): Promise<void> {
+    const uiContext = getContext(this) as common.UIAbilityContext;
+    const sandboxPath = AppStorage.get<string>('sandboxPath') || uiContext.filesDir;
+    const documentPicker = new picker.DocumentViewPicker(uiContext);
+    const selectOptions: picker.DocumentSelectOptions = {
+      maxSelectNumber: 1,
+      fileSuffixFilters: ['.mrp'],
+    };
+    try {
+      const uris = await documentPicker.select(selectOptions);
+      if (uris === null || uris === undefined || uris.length === 0) {
+        return;
+      }
+      const destPath = await copyPickerUriToMythroad(uris[0], sandboxPath);
+      promptAction.showToast({
+        message: `已复制到 mythroad：${destPath.substring(destPath.lastIndexOf('/') + 1)}`,
+        duration: 2500,
+      });
+    } catch (_e) {
+      promptAction.showToast({
+        message: '未选择文件或导入失败',
+        duration: 2000,
+      });
     }
   }
 }
