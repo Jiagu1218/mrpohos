@@ -46,6 +46,11 @@ static pthread_mutex_t g_windowMutex = PTHREAD_MUTEX_INITIALIZER;
 static uint32_t g_mrpRgbaComposite[(size_t)SCREEN_WIDTH * (size_t)SCREEN_HEIGHT];
 static uint8_t g_mrpCompositeReady;
 
+static void resetMrpNativeDrawState(void) {
+    g_mrpCompositeReady = 0;
+    bridge_reset_mr_draw_cache();
+}
+
 static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h, int32_t srcPitch,
     int32_t srcFromFullScreen) {
     pthread_mutex_lock(&g_windowMutex);
@@ -312,6 +317,8 @@ static napi_value NapiInit(napi_env env, napi_callback_info info) {
     fileLib_setSandboxPath(sandboxPath);
     free(sandboxPath);
 
+    resetMrpNativeDrawState();
+
     vmrp_setCallbacks(onDrawCallback, onTimerStartCallback, onTimerStopCallback);
 
     int32_t ret = initVmrpAndLoad();
@@ -343,6 +350,7 @@ static napi_value NapiStart(napi_env env, napi_callback_info info) {
 
     int32_t ret = MR_FAILED;
     if (uc) {
+        resetMrpNativeDrawState();
         // 分段日志：卡顿时看最后一条即可区分 init vs start_dsm（后者多为 uc_emu_start 不归）
         OH_LOG_INFO(LOG_APP, "vmrp_boot NapiStart step=1 before bridge_dsm_init");
         int32_t initRet = bridge_dsm_init(uc);

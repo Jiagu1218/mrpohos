@@ -14,7 +14,8 @@ const SCREEN_HEIGHT = 320;
 struct Index {
   private xComponentWidth: number = 240;
   private xComponentHeight: number = 320;
-  private timerId: number = -1;
+  /** 由 MRP timerStart(t) 调度：必须在 t 毫秒后调用一次 timer()，不能用固定短间隔轮询。 */
+  private mrpTimerTimeoutId: number = -1;
   private initialized: boolean = false;
 
   build() {
@@ -116,10 +117,17 @@ struct Index {
 
     let sandboxPath = AppStorage.get<string>('sandboxPath') || '/data/storage/el2/base';
 
-    // 须在 init/start 之前注册：MRP 会通过 timerStart() 触发 native 回调，未注册时 tsfn 为空且刷屏 HiLog
+    // 须在 init/start 之前注册：MRP 会通过 timerStart(t) 通知平台，平台须在 t ms 后调用一次 timer()（mr_timer）。
+    // 若此处为空且用短间隔 setInterval 调 timer()，会在远小于 t 时误触发，表现为「几秒对话框一闪就关」。
     testNapi.onTimerStop((): void => {
+      this.clearMrpTimerTimeout();
     });
-    testNapi.onTimerStart((_t: number): void => {
+    testNapi.onTimerStart((t: number): void => {
+      this.clearMrpTimerTimeout();
+      this.mrpTimerTimeoutId = setTimeout((): void => {
+        this.mrpTimerTimeoutId = -1;
+        testNapi.timer();
+      }, t);
     });
 
     let ret = testNapi.init(sandboxPath);
@@ -128,10 +136,6 @@ struct Index {
     if (ret === 0) {
       let startRet = testNapi.start('dsm_gm.mrp', 'start.mr');
       console.info('vmrp start result: ' + startRet);
-
-      this.timerId = setInterval(() => {
-        testNapi.timer();
-      }, 200);
     }
 
     this.initialized = true;
@@ -162,10 +166,10 @@ struct Index {
     }
   }
 
-  private stopTimer() {
-    if (this.timerId !== -1) {
-      clearInterval(this.timerId);
-      this.timerId = -1;
+  private clearMrpTimerTimeout(): void {
+    if (this.mrpTimerTimeoutId !== -1) {
+      clearTimeout(this.mrpTimerTimeoutId);
+      this.mrpTimerTimeoutId = -1;
     }
   }
 }

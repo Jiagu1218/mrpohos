@@ -94,6 +94,10 @@ static uint32_t mr_extHelper_addr;
 /* 观察到整屏 mr_drawBitmap(bmp,0,0,mr_sw,mr_sh) 时的 bmp；后续同指针的局部刷新即 _DispUpEx(mr_screenBuf,...) */
 static uint32_t s_mr_draw_cached_screen_bmp_guest;
 
+void bridge_reset_mr_draw_cache(void) {
+    s_mr_draw_cached_screen_bmp_guest = 0;
+}
+
 static const char MUTEX_LOCK_FAIL[] = "mutex lock fail";
 static const char MUTEX_UNLOCK_FAIL[] = "mutex unlock fail";
 static pthread_mutex_t mutex;

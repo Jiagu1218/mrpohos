@@ -52,4 +52,7 @@ int32_t bridge_dsm_mr_timer(uc_engine *uc);
 int32_t bridge_dsm_mr_event(uc_engine *uc, int32_t code, int32_t p0, int32_t p1);
 int32_t bridge_dsm_network_cb(uc_engine *uc, uint32_t addr, int32_t p0, uint32_t p1);
 
+/* 切换应用 / 重新 start 时清空 mr_drawBitmap 屏指针缓存，避免子 MRP 换缓冲后误判 */
+void bridge_reset_mr_draw_cache(void);
+
 #endif
