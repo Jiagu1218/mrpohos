@@ -1,0 +1,69 @@
+=== Build Output ===
+> D:\Program Files\Huawei\DevEco Studio\tools\node\node.exe D:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.js --mode project -p product=default assembleApp -p buildMode=debug -p debuggable=true -p debugLine=false --no-daemon
+
+> hvigor Finished ::PreBuildApp... after 2 ms 
+> hvigor UP-TO-DATE :entry:default@PreBuild...  
+> hvigor Finished ::DuplicateDependencyCheck... after 1 ms 
+> hvigor Finished :entry:default@CreateModuleInfo... after 2 ms 
+> hvigor UP-TO-DATE :entry:default@GenerateMetadata...  
+> hvigor Finished :entry:default@ConfigureCmake... after 31 ms 
+> hvigor UP-TO-DATE :entry:default@MergeProfile...  
+> hvigor UP-TO-DATE :entry:default@CreateBuildProfile...  
+> hvigor Finished :entry:default@PreCheckSyscap... after 1 ms 
+> hvigor Finished :entry:default@ProcessIntegratedHsp... after 2 ms 
+> hvigor Finished :entry:default@BuildNativeWithCmake... after 97 ms 
+> hvigor UP-TO-DATE :entry:default@MakePackInfo...  
+> hvigor Finished :entry:default@SyscapTransform... after 23 ms 
+> hvigor UP-TO-DATE :entry:default@GeneratePkgContextInfo...  
+> hvigor UP-TO-DATE :entry:default@ProcessProfile...  
+> hvigor UP-TO-DATE :entry:default@ProcessRouterMap...  
+> hvigor UP-TO-DATE :entry:default@ProcessShareConfig...  
+> hvigor Finished :entry:default@ProcessStartupConfig... after 5 ms 
+> hvigor UP-TO-DATE :entry:default@ProcessResource...  
+> hvigor UP-TO-DATE :entry:default@GenerateLoaderJson...  
+> hvigor UP-TO-DATE :entry:default@CompileResource...  
+> hvigor Finished :entry:default@BuildJS... after 23 ms 
+> hvigor Finished :entry:default@BuildNativeWithNinja... after 308 ms 
+> hvigor UP-TO-DATE :entry:default@ProcessLibs...  
+> hvigor UP-TO-DATE :entry:default@DoNativeStrip...  
+> hvigor UP-TO-DATE :entry:default@CacheNativeLibs...  
+> hvigor WARN: WARN: ArkTS:WARN File: D:/tmp/mrpohos/entry/src/main/ets/entryability/EntryAbility.ets:11:8
+ Function may throw exceptions. Special handling is required.
+
+WARN: ArkTS:WARN File: D:/tmp/mrpohos/entry/src/main/ets/entryability/EntryAbility.ets:12:5
+ Function may throw exceptions. Special handling is required.
+
+WARN: ArkTS:WARN File: D:/tmp/mrpohos/entry/src/main/ets/entryability/EntryAbility.ets:24:9
+ Function may throw exceptions. Special handling is required.
+
+WARN: ArkTS:WARN File: D:/tmp/mrpohos/entry/src/main/ets/entryability/EntryAbility.ets:50:16
+ 'SetOrCreate' has been deprecated.
+
+WARN: ArkTS:WARN File: D:/tmp/mrpohos/entry/src/main/ets/entryability/EntryAbility.ets:61:16
+ 'SetOrCreate' has been deprecated.
+
+
+> hvigor Finished :entry:default@CompileArkTS... after 9 s 465 ms 
+> hvigor UP-TO-DATE :entry:default@GeneratePkgModuleJson...  
+> hvigor Finished :entry:default@ProcessCompiledResources... after 2 ms 
+> hvigor Finished :entry:default@PackageHap... after 899 ms 
+> hvigor Finished :entry:default@PackingCheck... after 8 ms 
+> hvigor WARN: Will skip sign 'hos_hap'. No signingConfigs profile is configured in current project.
+             If needed, configure the signingConfigs in D:\tmp\mrpohos\build-profile.json5.
+> hvigor Finished :entry:default@SignHap... after 4 ms 
+> hvigor Finished :entry:default@CollectDebugSymbol... after 2 ms 
+> hvigor Finished :entry:assembleHap... after 1 ms 
+> hvigor UP-TO-DATE ::MakeProjectPackInfo...  
+> hvigor UP-TO-DATE ::ProcessProjectPrivacyProfile...  
+> hvigor UP-TO-DATE ::GeneratePackRes...  
+> hvigor Finished ::PackageApp... after 922 ms 
+> hvigor Finished ::SignPackagesFromApp... after 2 ms 
+> hvigor WARN: Will skip sign 'app'. No signingConfigs profile is configured in current project.
+             If needed, configure the signingConfigs in D:\tmp\mrpohos\build-profile.json5.
+> hvigor Finished ::SignApp... after 2 ms 
+> hvigor Finished ::assembleApp... after 1 ms 
+> hvigor BUILD SUCCESSFUL in 21 s 132 ms 
+
+
+Process finished with exit code 0
+

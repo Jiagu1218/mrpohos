@@ -46,6 +46,9 @@ target_compile_definitions(entry PRIVATE
 
 target_link_libraries(entry PUBLIC
     libace_napi.z.so
+    libace_ndk.z.so
+    libnative_window.so
+    libhilog_ndk.z.so
     unicorn
     libz.so
 )

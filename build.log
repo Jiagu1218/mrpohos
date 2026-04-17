@@ -1,9 +1,9 @@
 === Clean Output ===
 > D:\Program Files\Huawei\DevEco Studio\tools\node\node.exe D:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.js clean --no-daemon
 
-> hvigor Finished :entry:clean... after 1 s 4 ms 
+> hvigor Finished :entry:clean... after 513 ms 
 > hvigor Finished ::clean... after 1 ms 
-> hvigor BUILD SUCCESSFUL in 5 s 154 ms 
+> hvigor BUILD SUCCESSFUL in 32 s 323 ms 
 
 
 Process finished with exit code 0
@@ -11,69 +11,41 @@ Process finished with exit code 0
 === Build Output ===
 > D:\Program Files\Huawei\DevEco Studio\tools\node\node.exe D:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.js --mode project -p product=default assembleApp -p buildMode=debug -p debuggable=true -p debugLine=false --no-daemon
 
-> hvigor Finished ::PreBuildApp... after 2 ms 
+> hvigor Finished ::PreBuildApp... after 1 ms 
 > hvigor UP-TO-DATE :entry:default@PreBuild...  
 > hvigor Finished ::DuplicateDependencyCheck... after 1 ms 
-> hvigor Finished :entry:default@CreateModuleInfo... after 2 ms 
-> hvigor Finished :entry:default@GenerateMetadata... after 6 ms 
-> hvigor Finished :entry:default@ConfigureCmake... after 33 ms 
-> hvigor Finished :entry:default@MergeProfile... after 13 ms 
-> hvigor Finished :entry:default@CreateBuildProfile... after 5 ms 
+> hvigor Finished :entry:default@CreateModuleInfo... after 1 ms 
+> hvigor Finished :entry:default@GenerateMetadata... after 8 ms 
+> hvigor Finished :entry:default@ConfigureCmake... after 25 ms 
+> hvigor Finished :entry:default@MergeProfile... after 6 ms 
+> hvigor Finished :entry:default@CreateBuildProfile... after 7 ms 
 > hvigor Finished :entry:default@PreCheckSyscap... after 1 ms 
 > hvigor Finished :entry:default@ProcessIntegratedHsp... after 2 ms 
-> hvigor Finished :entry:default@MakePackInfo... after 89 ms 
-> hvigor Finished :entry:default@SyscapTransform... after 45 ms 
-> hvigor Finished :entry:default@BuildNativeWithCmake... after 4 s 381 ms 
-> hvigor Finished :entry:default@GeneratePkgContextInfo... after 94 ms 
-> hvigor Finished :entry:default@ProcessProfile... after 1 s 334 ms 
-> hvigor Finished :entry:default@ProcessRouterMap... after 7 ms 
+> hvigor Finished :entry:default@MakePackInfo... after 7 ms 
+> hvigor Finished :entry:default@SyscapTransform... after 24 ms 
+> hvigor Finished :entry:default@BuildNativeWithCmake... after 6 s 409 ms 
+> hvigor Finished :entry:default@GeneratePkgContextInfo... after 210 ms 
+> hvigor Finished :entry:default@ProcessProfile... after 9 s 94 ms 
+> hvigor Finished :entry:default@ProcessRouterMap... after 70 ms 
 > hvigor Finished :entry:default@ProcessShareConfig... after 4 ms 
 > hvigor Finished :entry:default@ProcessStartupConfig... after 3 ms 
-> hvigor Finished :entry:default@ProcessResource... after 104 ms 
-> hvigor Finished :entry:default@GenerateLoaderJson... after 13 ms 
-> hvigor Finished :entry:default@CompileResource... after 5 s 765 ms 
+> hvigor Finished :entry:default@ProcessResource... after 165 ms 
+> hvigor Finished :entry:default@GenerateLoaderJson... after 136 ms 
+> hvigor Finished :entry:default@CompileResource... after 4 s 989 ms 
 > hvigor Finished :entry:default@BuildJS... after 4 ms 
-> hvigor Finished :entry:default@BuildNativeWithNinja... after 16 s 400 ms 
-> hvigor Finished :entry:default@ProcessLibs... after 763 ms 
-> hvigor Finished :entry:default@DoNativeStrip... after 384 ms 
+> hvigor Finished :entry:default@BuildNativeWithNinja... after 23 s 339 ms 
+> hvigor Finished :entry:default@ProcessLibs... after 2 s 577 ms 
+> hvigor Finished :entry:default@DoNativeStrip... after 3 s 407 ms 
 > hvigor Finished :entry:default@CacheNativeLibs... after 7 ms 
-> hvigor WARN: WARN: ArkTS:WARN File: D:/tmp/mrpohos/entry/src/main/ets/entryability/EntryAbility.ets:11:8
- Function may throw exceptions. Special handling is required.
+> hvigor ERROR: Failed :entry:default@CompileArkTS... 
+> hvigor ERROR:  ERROR: the manifest file D:/tmp/mrpohos/entry/src/main/ets/manifest.json or module.json is lost or format is invalid. 
 
-WARN: ArkTS:WARN File: D:/tmp/mrpohos/entry/src/main/ets/entryability/EntryAbility.ets:12:5
- Function may throw exceptions. Special handling is required.
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --debug option to get more log output.
 
-WARN: ArkTS:WARN File: D:/tmp/mrpohos/entry/src/main/ets/entryability/EntryAbility.ets:24:9
- Function may throw exceptions. Special handling is required.
-
-WARN: ArkTS:WARN File: D:/tmp/mrpohos/entry/src/main/ets/entryability/EntryAbility.ets:50:16
- 'SetOrCreate' has been deprecated.
-
-WARN: ArkTS:WARN File: D:/tmp/mrpohos/entry/src/main/ets/entryability/EntryAbility.ets:61:16
- 'SetOrCreate' has been deprecated.
+> hvigor ERROR: BUILD FAILED in 58 s 643 ms 
 
 
-> hvigor Finished :entry:default@CompileArkTS... after 8 s 910 ms 
-> hvigor Finished :entry:default@GeneratePkgModuleJson... after 4 ms 
-> hvigor Finished :entry:default@ProcessCompiledResources... after 1 ms 
-> hvigor Finished :entry:default@PackageHap... after 99 ms 
-> hvigor Finished :entry:default@PackingCheck... after 7 ms 
-> hvigor WARN: Will skip sign 'hos_hap'. No signingConfigs profile is configured in current project.
-             If needed, configure the signingConfigs in D:\tmp\mrpohos\build-profile.json5.
-> hvigor Finished :entry:default@SignHap... after 4 ms 
-> hvigor Finished :entry:default@CollectDebugSymbol... after 2 ms 
-> hvigor Finished :entry:assembleHap... after 1 ms 
-> hvigor Finished ::MakeProjectPackInfo... after 7 ms 
-> hvigor Finished ::ProcessProjectPrivacyProfile... after 15 ms 
-> hvigor Finished ::GeneratePackRes... after 2 ms 
-> hvigor Finished ::PackageApp... after 835 ms 
-> hvigor Finished ::SignPackagesFromApp... after 3 ms 
-> hvigor WARN: Will skip sign 'app'. No signingConfigs profile is configured in current project.
-             If needed, configure the signingConfigs in D:\tmp\mrpohos\build-profile.json5.
-> hvigor Finished ::SignApp... after 2 ms 
-> hvigor Finished ::assembleApp... after 1 ms 
-> hvigor BUILD SUCCESSFUL in 36 s 46 ms 
-
-
-Process finished with exit code 0
+Process finished with exit code -1
 

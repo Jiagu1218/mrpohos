@@ -1,0 +1,79 @@
+=== Clean Output ===
+> D:\Program Files\Huawei\DevEco Studio\tools\node\node.exe D:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.js clean --no-daemon
+
+> hvigor Finished :entry:clean... after 213 ms 
+> hvigor Finished ::clean... after 1 ms 
+> hvigor BUILD SUCCESSFUL in 4 s 120 ms 
+
+
+Process finished with exit code 0
+
+=== Build Output ===
+> D:\Program Files\Huawei\DevEco Studio\tools\node\node.exe D:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.js --mode project -p product=default assembleApp -p buildMode=debug -p debuggable=true -p debugLine=false --no-daemon
+
+> hvigor Finished ::PreBuildApp... after 1 ms 
+> hvigor UP-TO-DATE :entry:default@PreBuild...  
+> hvigor Finished ::DuplicateDependencyCheck... after 2 ms 
+> hvigor Finished :entry:default@CreateModuleInfo... after 2 ms 
+> hvigor Finished :entry:default@GenerateMetadata... after 12 ms 
+> hvigor Finished :entry:default@ConfigureCmake... after 37 ms 
+> hvigor Finished :entry:default@MergeProfile... after 9 ms 
+> hvigor Finished :entry:default@CreateBuildProfile... after 7 ms 
+> hvigor Finished :entry:default@PreCheckSyscap... after 1 ms 
+> hvigor Finished :entry:default@ProcessIntegratedHsp... after 2 ms 
+> hvigor Finished :entry:default@MakePackInfo... after 24 ms 
+> hvigor Finished :entry:default@SyscapTransform... after 20 ms 
+> hvigor Finished :entry:default@BuildNativeWithCmake... after 2 s 908 ms 
+> hvigor Finished :entry:default@GeneratePkgContextInfo... after 95 ms 
+> hvigor Finished :entry:default@ProcessProfile... after 2 s 272 ms 
+> hvigor Finished :entry:default@ProcessRouterMap... after 128 ms 
+> hvigor Finished :entry:default@ProcessShareConfig... after 54 ms 
+> hvigor Finished :entry:default@ProcessStartupConfig... after 3 ms 
+> hvigor Finished :entry:default@ProcessResource... after 21 ms 
+> hvigor Finished :entry:default@GenerateLoaderJson... after 133 ms 
+> hvigor Finished :entry:default@CompileResource... after 5 s 835 ms 
+> hvigor Finished :entry:default@BuildJS... after 6 ms 
+> hvigor Finished :entry:default@BuildNativeWithNinja... after 17 s 232 ms 
+> hvigor Finished :entry:default@ProcessLibs... after 455 ms 
+> hvigor Finished :entry:default@DoNativeStrip... after 222 ms 
+> hvigor Finished :entry:default@CacheNativeLibs... after 7 ms 
+> hvigor WARN: WARN: ArkTS:WARN File: D:/tmp/mrpohos/entry/src/main/ets/entryability/EntryAbility.ets:11:8
+ Function may throw exceptions. Special handling is required.
+
+WARN: ArkTS:WARN File: D:/tmp/mrpohos/entry/src/main/ets/entryability/EntryAbility.ets:12:5
+ Function may throw exceptions. Special handling is required.
+
+WARN: ArkTS:WARN File: D:/tmp/mrpohos/entry/src/main/ets/entryability/EntryAbility.ets:24:9
+ Function may throw exceptions. Special handling is required.
+
+WARN: ArkTS:WARN File: D:/tmp/mrpohos/entry/src/main/ets/entryability/EntryAbility.ets:50:16
+ 'SetOrCreate' has been deprecated.
+
+WARN: ArkTS:WARN File: D:/tmp/mrpohos/entry/src/main/ets/entryability/EntryAbility.ets:61:16
+ 'SetOrCreate' has been deprecated.
+
+
+> hvigor Finished :entry:default@CompileArkTS... after 13 s 518 ms 
+> hvigor Finished :entry:default@GeneratePkgModuleJson... after 5 ms 
+> hvigor Finished :entry:default@ProcessCompiledResources... after 2 ms 
+> hvigor Finished :entry:default@PackageHap... after 1 s 820 ms 
+> hvigor Finished :entry:default@PackingCheck... after 7 ms 
+> hvigor WARN: Will skip sign 'hos_hap'. No signingConfigs profile is configured in current project.
+             If needed, configure the signingConfigs in D:\tmp\mrpohos\build-profile.json5.
+> hvigor Finished :entry:default@SignHap... after 3 ms 
+> hvigor Finished :entry:default@CollectDebugSymbol... after 2 ms 
+> hvigor Finished :entry:assembleHap... after 1 ms 
+> hvigor Finished ::MakeProjectPackInfo... after 10 ms 
+> hvigor Finished ::ProcessProjectPrivacyProfile... after 15 ms 
+> hvigor Finished ::GeneratePackRes... after 2 ms 
+> hvigor Finished ::PackageApp... after 955 ms 
+> hvigor Finished ::SignPackagesFromApp... after 2 ms 
+> hvigor WARN: Will skip sign 'app'. No signingConfigs profile is configured in current project.
+             If needed, configure the signingConfigs in D:\tmp\mrpohos\build-profile.json5.
+> hvigor Finished ::SignApp... after 2 ms 
+> hvigor Finished ::assembleApp... after 1 ms 
+> hvigor BUILD SUCCESSFUL in 41 s 970 ms 
+
+
+Process finished with exit code 0
+

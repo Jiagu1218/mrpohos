@@ -1,0 +1,58 @@
+=== Build Output ===
+> D:\Program Files\Huawei\DevEco Studio\tools\node\node.exe D:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.js --mode project -p product=default assembleApp -p buildMode=debug -p debuggable=true -p debugLine=false --no-daemon
+
+> hvigor Finished ::PreBuildApp... after 2 ms 
+> hvigor UP-TO-DATE :entry:default@PreBuild...  
+> hvigor Finished ::DuplicateDependencyCheck... after 1 ms 
+> hvigor Finished :entry:default@CreateModuleInfo... after 2 ms 
+> hvigor UP-TO-DATE :entry:default@GenerateMetadata...  
+> hvigor Finished :entry:default@ConfigureCmake... after 25 ms 
+> hvigor UP-TO-DATE :entry:default@MergeProfile...  
+> hvigor UP-TO-DATE :entry:default@CreateBuildProfile...  
+> hvigor Finished :entry:default@PreCheckSyscap... after 1 ms 
+> hvigor Finished :entry:default@ProcessIntegratedHsp... after 2 ms 
+> hvigor Finished :entry:default@BuildNativeWithCmake... after 79 ms 
+> hvigor UP-TO-DATE :entry:default@MakePackInfo...  
+> hvigor Finished :entry:default@SyscapTransform... after 24 ms 
+> hvigor UP-TO-DATE :entry:default@GeneratePkgContextInfo...  
+> hvigor UP-TO-DATE :entry:default@ProcessProfile...  
+> hvigor UP-TO-DATE :entry:default@ProcessRouterMap...  
+> hvigor UP-TO-DATE :entry:default@ProcessShareConfig...  
+> hvigor Finished :entry:default@ProcessStartupConfig... after 7 ms 
+> hvigor UP-TO-DATE :entry:default@ProcessResource...  
+> hvigor UP-TO-DATE :entry:default@GenerateLoaderJson...  
+> hvigor UP-TO-DATE :entry:default@CompileResource...  
+> hvigor Finished :entry:default@BuildJS... after 3 ms 
+> hvigor ERROR: Failed :entry:default@BuildNativeWithNinja... 
+> hvigor ERROR: Exceptions happened while executing D:\Program Files\Huawei\DevEco Studio\sdk\default\openharmony\native\build-tools\cmake\bin\ninja.exe -C D:\tmp\mrpohos\entry\.cxx\default\default\debug\arm64-v8a.
+ninja: Entering directory `D:\tmp\mrpohos\entry\.cxx\default\default\debug\arm64-v8a'
+[1/1] Linking CXX shared library D:\tmp\mrpohos\entry\build\default\intermediates\cmake\default\obj\arm64-v8a\libentry.so
+FAILED: D:/tmp/mrpohos/entry/build/default/intermediates/cmake/default/obj/arm64-v8a/libentry.so 
+C:\WINDOWS\system32\cmd.exe /C "cd . && D:\PROGRA~1\Huawei\DEVECO~1\sdk\default\hms\native\BiSheng\bin\CLANG_~1.EXE --target=aarch64-linux-ohos --gcc-toolchain="D:/Program Files/Huawei/DevEco Studio/sdk/default/hms/native/BiSheng" --sysroot="D:/Program Files/Huawei/DevEco Studio/sdk/default/openharmony/native/sysroot" -fPIC -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -fno-addrsig -Wa,--noexecstack -Wformat -Werror=format-security   -D__MUSL__ -O0 -g -fno-limit-debug-info  --rtlib=compiler-rt -fuse-ld=lld -Wl,--build-id=sha1 -Wl,--warn-shared-textrel -Wl,--fatal-warnings -lunwind -Wl,--no-undefined -Qunused-arguments -Wl,-z,noexecstack -shared -Wl,-soname,libentry.so -o D:\tmp\mrpohos\entry\build\default\intermediates\cmake\default\obj\arm64-v8a\libentry.so CMakeFiles/entry.dir/napi_init.cpp.o CMakeFiles/entry.dir/vmrp/vmrp.c.o CMakeFiles/entry.dir/vmrp/bridge.c.o CMakeFiles/entry.dir/vmrp/memory.c.o CMakeFiles/entry.dir/vmrp/fileLib.c.o CMakeFiles/entry.dir/vmrp/network.c.o CMakeFiles/entry.dir/vmrp/rbtree.c.o CMakeFiles/entry.dir/vmrp/utils.c.o CMakeFiles/entry.dir/vmrp/platform_harmony.c.o  -lace_napi.z  -lace_ndk.z  -lnative_window  unicorn/libunicorn.a  -lz  unicorn/libarm-softmmu.a  unicorn/libunicorn-common.a  -lpthread  -lm  -lm && cd ."
+ld.lld: error: undefined symbol: OH_LOG_Print
+>>> referenced by napi_init.cpp:182 (D:/tmp/mrpohos/entry/src/main/cpp/napi_init.cpp:182)
+>>>               CMakeFiles/entry.dir/napi_init.cpp.o:(NapiInit(napi_env__*, napi_callback_info__*))
+>>> referenced by napi_init.cpp:210 (D:/tmp/mrpohos/entry/src/main/cpp/napi_init.cpp:210)
+>>>               CMakeFiles/entry.dir/napi_init.cpp.o:(NapiStart(napi_env__*, napi_callback_info__*))
+>>> referenced by napi_init.cpp:240 (D:/tmp/mrpohos/entry/src/main/cpp/napi_init.cpp:240)
+>>>               CMakeFiles/entry.dir/napi_init.cpp.o:(NapiEvent(napi_env__*, napi_callback_info__*))
+
+>>> referenced 3 more times
+
+clang++: error: linker command failed with exit code 1 (use -v to see invocation)
+
+ninja: build stopped: subcommand failed.
+A 'undefined symbol' error has occurred.
+* Try the following:
+  > Troubleshoot the errors according to the following guidelines.
+  > More info: https://developer.huawei.com/consumer/cn/doc/harmonyos-faqs/faqs-compiling-and-building-116
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --debug option to get more log output.
+
+> hvigor ERROR: BUILD FAILED in 9 s 176 ms 
+
+
+Process finished with exit code -1
+

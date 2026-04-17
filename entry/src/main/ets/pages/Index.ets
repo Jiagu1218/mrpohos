@@ -116,35 +116,19 @@ struct Index {
 
     let sandboxPath = AppStorage.get<string>('sandboxPath') || '/data/storage/el2/base';
 
-    testNapi.onDraw((x: number, y: number, w: number, h: number, pixels: ArrayBuffer): void => {
-      this.drawFrame(x, y, w, h, pixels);
-    });
-
-    testNapi.onTimerStart((t: number): void => {
-      this.stopTimer();
-      this.timerId = setInterval(() => {
-        testNapi.timer();
-      }, t);
-    });
-
-    testNapi.onTimerStop((): void => {
-      this.stopTimer();
-    });
-
     let ret = testNapi.init(sandboxPath);
     console.info('vmrp init result: ' + ret);
 
     if (ret === 0) {
       let startRet = testNapi.start('dsm_gm.mrp', 'start.mr');
       console.info('vmrp start result: ' + startRet);
+
+      this.timerId = setInterval(() => {
+        testNapi.timer();
+      }, 200);
     }
 
     this.initialized = true;
-  }
-
-  private drawFrame(x: number, y: number, w: number, h: number, pixels: ArrayBuffer) {
-    // Drawing is handled by XComponent surface - pixels are available for future use
-    console.info(`drawFrame: x=${x}, y=${y}, w=${w}, h=${h}`);
   }
 
   private handleTouch(event: TouchEvent) {

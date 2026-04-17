@@ -6,21 +6,39 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 const DOMAIN = 0x0000;
 const TAG = 'EntryAbility';
 
-async function copyRawfileToSandbox(context: Context, sandboxPath: string) {
-  let mythroadDir = sandboxPath + '/mythroad/system';
-  if (!fs.accessSync(sandboxPath + '/mythroad')) {
-    fs.mkdirSync(mythroadDir, true);
+async function collectRawfiles(context: Context, dir: string): Promise<string[]> {
+  let result: string[] = [];
+  try {
+    let entries: string[] = await context.resourceManager.getRawFileList(dir);
+    for (let entry of entries) {
+      let path = dir.length > 0 ? dir + '/' + entry : entry;
+      try {
+        let sub: string[] = await context.resourceManager.getRawFileList(path);
+        let children = await collectRawfiles(context, path);
+        result = result.concat(children);
+      } catch (_e) {
+        result.push(path);
+      }
+    }
+  } catch (_e) {
+    result.push(dir);
   }
+  return result;
+}
 
+async function copyRawfileToSandbox(context: Context, sandboxPath: string) {
   let files = [
     'cfunction.ext',
-    'mythroad/dsm_gm.mrp',
-    'mythroad/system/gb12.uc2',
-    'mythroad/system/gb16.uc2',
   ];
+  let mythroadFiles = await collectRawfiles(context, 'mythroad');
+  files = files.concat(mythroadFiles);
 
   for (let file of files) {
     let destPath = sandboxPath + '/' + file;
+    let destDir = destPath.substring(0, destPath.lastIndexOf('/'));
+    if (!fs.accessSync(destDir)) {
+      fs.mkdirSync(destDir, true);
+    }
     if (fs.accessSync(destPath)) {
       hilog.info(DOMAIN, TAG, 'Already exists: %{public}s', file);
       continue;
