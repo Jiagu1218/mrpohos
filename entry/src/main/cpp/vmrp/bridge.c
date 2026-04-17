@@ -1215,7 +1215,7 @@ uc_err bridge_init(uc_engine *uc) {
 #ifdef __EMSCRIPTEN__
     ((DSM_REQUIRE_FUNCS *)dsm_require_funcs)->flags = FLAG_USE_UTF8_FS;  // wasm文件系统是UTF8编码
 #else
-    ((DSM_REQUIRE_FUNCS *)dsm_require_funcs)->flags = FLAG_USE_UTF8_FS | FLAG_USE_UTF8_EDIT;  // HarmonyOS文件系统是UTF-8编码
+    ((DSM_REQUIRE_FUNCS *)dsm_require_funcs)->flags = FLAG_USE_UTF8_FS;  // HarmonyOS文件系统是UTF-8编码
 #endif
 
     mr_c_event = my_mallocExt(sizeof(event_t));

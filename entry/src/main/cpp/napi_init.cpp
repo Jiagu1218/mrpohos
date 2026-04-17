@@ -85,25 +85,44 @@ static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w,
         close(releaseFenceFd);
     }
 
-    void *mappedAddr = mmap(bufferHandle->virAddr, bufferHandle->size, PROT_READ | PROT_WRITE, MAP_SHARED, bufferHandle->fd, 0);
+    // stride 为每行字节数（见 BufferHandle 文档），真机常有行对齐；不能用 width 当 uint32 行步进，否则花屏。
+    int32_t strideBytes = bufferHandle->stride;
+    if (strideBytes < (int32_t)sizeof(uint32_t)) {
+        strideBytes = bufferHandle->width * (int32_t)sizeof(uint32_t);
+    }
+    const size_t rowStrideUint32 = (size_t)strideBytes / sizeof(uint32_t);
+
+    void *hintAddr = bufferHandle->virAddr;
+    void *mappedAddr =
+        mmap(hintAddr, (size_t)bufferHandle->size, PROT_READ | PROT_WRITE, MAP_SHARED, bufferHandle->fd, 0);
+    if (mappedAddr == MAP_FAILED && hintAddr != nullptr) {
+        mappedAddr = mmap(nullptr, (size_t)bufferHandle->size, PROT_READ | PROT_WRITE, MAP_SHARED, bufferHandle->fd, 0);
+    }
     if (mappedAddr == MAP_FAILED) {
         pthread_mutex_unlock(&g_windowMutex);
         return;
     }
 
-    int32_t screenW = SCREEN_WIDTH;
-    int32_t screenH = SCREEN_HEIGHT;
+    int32_t bufW = bufferHandle->width > 0 ? bufferHandle->width : SCREEN_WIDTH;
+    int32_t bufH = bufferHandle->height > 0 ? bufferHandle->height : SCREEN_HEIGHT;
     uint32_t *dst = (uint32_t *)mappedAddr;
-    int32_t stride = bufferHandle->width;
+
+    static int32_t s_loggedBufferShape = 0;
+    if (!s_loggedBufferShape) {
+        OH_LOG_INFO(LOG_APP,
+            "NativeBuffer: w=%{public}d h=%{public}d strideBytes=%{public}d rowUint32=%{public}zu size=%{public}d",
+            bufW, bufH, strideBytes, rowStrideUint32, bufferHandle->size);
+        s_loggedBufferShape = 1;
+    }
 
     for (int32_t row = 0; row < h; row++) {
         int32_t screenY = y + row;
-        if (screenY < 0 || screenY >= screenH) continue;
+        if (screenY < 0 || screenY >= bufH) continue;
         uint16_t *srcRow = bmp + row * w;
-        uint32_t *dstRow = dst + screenY * stride;
+        uint32_t *dstRow = dst + (size_t)screenY * rowStrideUint32;
         for (int32_t col = 0; col < w; col++) {
             int32_t screenX = x + col;
-            if (screenX < 0 || screenX >= screenW) continue;
+            if (screenX < 0 || screenX >= bufW) continue;
             uint16_t pixel = srcRow[col];
             uint8_t r = ((pixel >> 11) & 0x1F) << 3;
             uint8_t g = ((pixel >> 5) & 0x3F) << 2;
@@ -112,7 +131,7 @@ static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w,
         }
     }
 
-    munmap(mappedAddr, bufferHandle->size);
+    munmap(mappedAddr, (size_t)bufferHandle->size);
 
     Region region = {nullptr, 0};
     OH_NativeWindow_NativeWindowFlushBuffer(window, buffer, -1, region);
