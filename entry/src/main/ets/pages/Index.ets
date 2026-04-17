@@ -47,6 +47,8 @@ function mrpUnicodeCharCount(s: string): number {
 struct MrpEditDialog {
   /** 须由父组件传入 `CustomDialogController.open()` 的同一实例，否则无法 close。 */
   controller?: CustomDialogController;
+  /** 每次打开递增，用于 .key 强制重建输入框，避免回显仍用旧内部 buffer。 */
+  @Prop gen: number = 0;
   @Link title: string;
   @Link text: string;
   @Link maxSize: number;
@@ -61,17 +63,19 @@ struct MrpEditDialog {
       Text(this.title)
         .fontSize(18)
         .fontWeight(FontWeight.Medium)
+        .fontFamily('HarmonyOS Sans')
         .width('100%')
       if (this.editType === MR_EDIT_PASSWORD) {
-        TextInput({ text: this.text })
+        TextInput({ text: $$this.text })
+          .key('mrp_pwd_' + this.gen.toString())
           .type(InputType.Password)
+          .fontFamily('HarmonyOS Sans')
           .width('100%')
-          .onChange((v: string) => {
-            this.text = v;
-          })
       } else if (this.editType === MR_EDIT_NUMERIC) {
-        TextInput({ text: this.text })
+        TextInput({ text: $$this.text })
+          .key('mrp_num_' + this.gen.toString())
           .type(InputType.Number)
+          .fontFamily('HarmonyOS Sans')
           .width('100%')
           .onChange((v: string) => {
             let filtered = '';
@@ -84,15 +88,15 @@ struct MrpEditDialog {
             this.text = filtered;
           })
       } else {
-        TextArea({ text: this.text })
+        TextArea({ text: $$this.text })
+          .key('mrp_txt_' + this.gen.toString())
+          .fontFamily('HarmonyOS Sans')
           .width('100%')
           .height(140)
-          .onChange((v: string) => {
-            this.text = v;
-          })
       }
       Text(`${mrpUnicodeCharCount(this.text)}/${this.maxSize}`)
         .fontSize(12)
+        .fontFamily('HarmonyOS Sans')
         .fontColor(mrpUnicodeCharCount(this.text) > this.maxSize ? Color.Red : Color.Gray)
       Row({ space: 16 }) {
         Button('取消')
@@ -130,6 +134,7 @@ struct Index {
   @State editDlgText: string = '';
   @State editDlgMax: number = 256;
   @State editDlgType: number = 0;
+  @State editDlgGen: number = 0;
   private xComponentWidth: number = 240;
   private xComponentHeight: number = 320;
   /** 由 MRP timerStart(t) 调度：必须在 t 毫秒后调用一次 timer()，不能用固定短间隔轮询。 */
@@ -143,6 +148,7 @@ struct Index {
   MrpEditDialogBuilder() {
     MrpEditDialog({
       controller: this.editDialogController as CustomDialogController,
+      gen: this.editDlgGen,
       title: $editDlgTitle,
       text: $editDlgText,
       maxSize: $editDlgMax,
@@ -281,6 +287,7 @@ struct Index {
     let sandboxPath = AppStorage.get<string>('sandboxPath') || '/data/storage/el2/base';
 
     testNapi.onEditRequest((title: string, text: string, type: number, maxSize: number): void => {
+      this.editDlgGen++;
       this.editDlgTitle = title;
       this.editDlgText = text;
       this.editDlgMax = maxSize > 0 ? maxSize : 256;

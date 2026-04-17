@@ -193,3 +193,44 @@ char *ucs2be_str_to_utf8(const unsigned char *unicode, unsigned int *out_len) {
     utf8[i] = '\0';
     return utf8;
 }
+
+char *ucs2le_str_to_utf8(const unsigned char *unicode, unsigned int *out_len) {
+    unsigned int i;
+    unsigned char *swapped;
+    char *ret;
+
+    if (unicode == NULL) {
+        char *r = (char *)malloc(1);
+        if (!r) {
+            return NULL;
+        }
+        r[0] = '\0';
+        if (out_len) {
+            *out_len = 1;
+        }
+        return r;
+    }
+    if (!unicode[0] && !unicode[1]) {
+        return ucs2be_str_to_utf8(unicode, out_len);
+    }
+
+    i = 0;
+    while (unicode[i] || unicode[i + 1]) {
+        i += 2;
+    }
+
+    swapped = (unsigned char *)malloc(i + 2);
+    if (!swapped) {
+        return NULL;
+    }
+    for (unsigned int u = 0; u < i; u += 2) {
+        swapped[u] = unicode[u + 1];
+        swapped[u + 1] = unicode[u];
+    }
+    swapped[i] = 0;
+    swapped[i + 1] = 0;
+
+    ret = ucs2be_str_to_utf8(swapped, out_len);
+    free(swapped);
+    return ret;
+}
