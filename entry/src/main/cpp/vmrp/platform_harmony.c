@@ -1,4 +1,5 @@
 #include "platform_harmony.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,6 +12,78 @@ static void (*g_onDraw)(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t 
 static void (*g_onTimerStart)(uint16_t t) = NULL;
 static void (*g_onTimerStop)() = NULL;
 static void (*g_onEditRequest)(const char *title, const char *text, int32_t type, int32_t max_size) = NULL;
+
+extern void vmrp_harmony_post_message_ui(int32_t op, int32_t view_kind, int32_t dialog_type, const char *title_utf8,
+    const char *text_utf8);
+
+enum {
+    HARMONY_MSGUI_OP_CLOSE = 0,
+    HARMONY_MSGUI_OP_OPEN = 1,
+    HARMONY_MSGUI_OP_REFRESH = 2,
+};
+
+enum {
+    HARMONY_VIEW_DIALOG = 1,
+    HARMONY_VIEW_TEXT = 2,
+};
+
+#define HARMONY_HANDLE_DIALOG 0xD101
+#define HARMONY_HANDLE_TEXT 0xD102
+
+static void harmony_emit_message_ui(int32 op, int32 view_kind, int32 dialog_type, const char *t8, const char *x8) {
+    vmrp_harmony_post_message_ui(op, view_kind, dialog_type, t8 ? t8 : "", x8 ? x8 : "");
+}
+
+static int32 harmony_message_emit_ucs2(int32 op, int32 view_kind, int32 dialog_type, const char *title_ucs2be,
+    const char *text_ucs2be) {
+    char *t8 = NULL;
+    char *x8 = NULL;
+    if (title_ucs2be) {
+        t8 = ucs2be_str_to_utf8((const unsigned char *)title_ucs2be, NULL);
+    }
+    if (text_ucs2be) {
+        x8 = ucs2be_str_to_utf8((const unsigned char *)text_ucs2be, NULL);
+    }
+    harmony_emit_message_ui(op, view_kind, dialog_type, t8 ? t8 : "", x8 ? x8 : "");
+    free(t8);
+    free(x8);
+    return MR_SUCCESS;
+}
+
+int32 harmony_dialog_create(const char *title_ucs2be, const char *text_ucs2be, int32 type) {
+    harmony_message_emit_ucs2(HARMONY_MSGUI_OP_OPEN, HARMONY_VIEW_DIALOG, type, title_ucs2be, text_ucs2be);
+    return HARMONY_HANDLE_DIALOG;
+}
+
+int32 harmony_dialog_refresh(int32 dialog, const char *title_ucs2be, const char *text_ucs2be, int32 type) {
+    (void)dialog;
+    harmony_message_emit_ucs2(HARMONY_MSGUI_OP_REFRESH, HARMONY_VIEW_DIALOG, type, title_ucs2be, text_ucs2be);
+    return MR_SUCCESS;
+}
+
+int32 harmony_dialog_release(int32 dialog) {
+    (void)dialog;
+    harmony_emit_message_ui(HARMONY_MSGUI_OP_CLOSE, HARMONY_VIEW_DIALOG, 0, "", "");
+    return MR_SUCCESS;
+}
+
+int32 harmony_text_create(const char *title_ucs2be, const char *text_ucs2be, int32 type) {
+    harmony_message_emit_ucs2(HARMONY_MSGUI_OP_OPEN, HARMONY_VIEW_TEXT, type, title_ucs2be, text_ucs2be);
+    return HARMONY_HANDLE_TEXT;
+}
+
+int32 harmony_text_refresh(int32 handle, const char *title_ucs2be, const char *text_ucs2be) {
+    (void)handle;
+    /* mr_textRefresh 无 type 参数，刷新时 dialog_type 传 -1 表示保持当前按键布局 */
+    harmony_message_emit_ucs2(HARMONY_MSGUI_OP_REFRESH, HARMONY_VIEW_TEXT, -1, title_ucs2be, text_ucs2be);
+    return MR_SUCCESS;
+}
+
+int32 harmony_text_release(int32 handle) {
+    (void)handle;
+    harmony_emit_message_ui(HARMONY_MSGUI_OP_CLOSE, HARMONY_VIEW_TEXT, 0, "", "");
+    return MR_SUCCESS;
+}
 
 void vmrp_setCallbacks(
     void (*onDraw)(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h, int32_t srcPitch,

@@ -17,6 +17,7 @@
 #include "./header/vmrp.h"
 #include "./header/debug.h"
 #include "./header/network.h"
+#include "platform_harmony.h"
 
 #ifndef __EMSCRIPTEN__
 #include "harmony_midi_audio.h"
@@ -993,7 +994,7 @@ static void br_mr_dialogCreate(BridgeMap *o, uc_engine *uc) {
 #ifdef __EMSCRIPTEN__
     SET_RET_V(js_mr_dialogCreate(getMrpMemPtr(title), getMrpMemPtr(text), type));
 #else
-    SET_RET_V(MR_FAILED);
+    SET_RET_V(harmony_dialog_create((const char *)getMrpMemPtr(title), (const char *)getMrpMemPtr(text), type));
 #endif
 }
 
@@ -1011,7 +1012,7 @@ static void br_mr_dialogRelease(BridgeMap *o, uc_engine *uc) {
 #ifdef __EMSCRIPTEN__
     SET_RET_V(js_mr_dialogRelease(dialog));
 #else
-    SET_RET_V(MR_FAILED);
+    SET_RET_V(harmony_dialog_release(dialog));
 #endif
 }
 
@@ -1041,7 +1042,7 @@ static void br_mr_dialogRefresh(BridgeMap *o, uc_engine *uc) {
 #ifdef __EMSCRIPTEN__
     SET_RET_V(js_mr_dialogRefresh(dialog, getMrpMemPtr(title), getMrpMemPtr(text), type));
 #else
-    SET_RET_V(MR_FAILED);
+    SET_RET_V(harmony_dialog_refresh(dialog, (const char *)getMrpMemPtr(title), (const char *)getMrpMemPtr(text), type));
 #endif
 }
 
@@ -1074,7 +1075,7 @@ static void br_mr_textCreate(BridgeMap *o, uc_engine *uc) {
 #ifdef __EMSCRIPTEN__
     SET_RET_V(js_mr_textCreate(getMrpMemPtr(title), getMrpMemPtr(text), type));
 #else
-    SET_RET_V(MR_FAILED);
+    SET_RET_V(harmony_text_create((const char *)getMrpMemPtr(title), (const char *)getMrpMemPtr(text), type));
 #endif
 }
 
@@ -1092,7 +1093,7 @@ static void br_mr_textRelease(BridgeMap *o, uc_engine *uc) {
 #ifdef __EMSCRIPTEN__
     SET_RET_V(js_mr_textRelease(handle));
 #else
-    SET_RET_V(MR_FAILED);
+    SET_RET_V(harmony_text_release(handle));
 #endif
 }
 
@@ -1113,7 +1114,7 @@ static void br_mr_textRefresh(BridgeMap *o, uc_engine *uc) {
 #ifdef __EMSCRIPTEN__
     SET_RET_V(js_mr_textRefresh(handle, getMrpMemPtr(title), getMrpMemPtr(text)));
 #else
-    SET_RET_V(MR_FAILED);
+    SET_RET_V(harmony_text_refresh(handle, (const char *)getMrpMemPtr(title), (const char *)getMrpMemPtr(text)));
 #endif
 }
 

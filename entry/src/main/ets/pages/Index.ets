@@ -9,6 +9,8 @@ interface MrpNativeBindings {
   start: (filename: string, extName: string) => number;
   event: (code: number, p0: number, p1: number) => number;
   timer: () => number;
+  /** mr_dialog* / mr_text*（可选：旧 .so 无此导出时无系统框） */
+  onMessageUi?: (callback: (op: number, viewKind: number, dialogType: number, title: string, text: string) => void) => void;
   onEditRequest: (callback: (title: string, text: string, type: number, maxSize: number) => void) => void;
   setEditResult: (text: string) => void;
 }
@@ -56,6 +58,11 @@ const MR_KEYCODE_CAPTURE = 26;
 const MR_DIALOG_EVENT = 6;
 const MR_DIALOG_KEY_OK = 0;
 const MR_DIALOG_KEY_CANCEL = 1;
+
+/** mythroad mr_dialogCreate / mr_textCreate 的 type，与 mrporting.h 一致 */
+const MR_DIALOG_OK = 0;
+const MR_DIALOG_OK_CANCEL = 1;
+const MR_DIALOG_CANCEL = 2;
 
 const MR_EDIT_NUMERIC = 1;
 const MR_EDIT_PASSWORD = 2;
@@ -258,6 +265,14 @@ struct Index {
   private editDialogController: CustomDialogController | null = null;
   private editDialogControllerReady: boolean = false;
 
+  @State msgDlgTitle: string = '';
+  @State msgDlgBody: string = '';
+  @State msgDlgType: number = MR_DIALOG_OK;
+  @State msgDlgIsText: boolean = false;
+  @State msgDlgGen: number = 0;
+  private msgDialogController: CustomDialogController | null = null;
+  private msgDialogControllerReady: boolean = false;
+
   /** $变量 仅在本组件的 @Builder 内合法；不能直接写在 CustomDialogController 的匿名 builder 里。 */
   @Builder
   MrpEditDialogBuilder() {
@@ -278,23 +293,96 @@ struct Index {
     });
   }
 
-  aboutToAppear(): void {
-    if (this.editDialogControllerReady) {
-      return;
+  @Builder
+  MrpMessageDialogBuilder() {
+    Column({ space: 12 }) {
+      Text(this.msgDlgTitle)
+        .fontSize(18)
+        .fontWeight(FontWeight.Medium)
+        .fontFamily('HarmonyOS Sans')
+        .width('100%')
+      Scroll() {
+        Text(this.msgDlgBody)
+          .fontSize(14)
+          .fontFamily('HarmonyOS Sans')
+          .width('100%')
+      }
+      .key('mr_msg_scroll_' + this.msgDlgGen.toString())
+      .width('100%')
+      .height(this.msgDlgIsText ? 280 : 120)
+      .scrollable(ScrollDirection.Vertical)
+      .scrollBar(BarState.Auto)
+
+      if (this.msgDlgType === MR_DIALOG_CANCEL) {
+        Button('返回')
+          .width('100%')
+          .type(ButtonType.Capsule)
+          .onClick((): void => {
+            getMrpNative()?.event(MR_DIALOG_EVENT, MR_DIALOG_KEY_CANCEL, 0);
+            if (this.msgDialogController != null) {
+              this.msgDialogController.close();
+            }
+          })
+      } else {
+        Row({ space: 16 }) {
+          if (this.msgDlgType === MR_DIALOG_OK_CANCEL) {
+            Button('取消')
+              .layoutWeight(1)
+              .onClick((): void => {
+                getMrpNative()?.event(MR_DIALOG_EVENT, MR_DIALOG_KEY_CANCEL, 0);
+                if (this.msgDialogController != null) {
+                  this.msgDialogController.close();
+                }
+              })
+          }
+          Button('确定')
+            .layoutWeight(1)
+            .type(ButtonType.Capsule)
+            .onClick((): void => {
+              getMrpNative()?.event(MR_DIALOG_EVENT, MR_DIALOG_KEY_OK, 0);
+              if (this.msgDialogController != null) {
+                this.msgDialogController.close();
+              }
+            })
+        }
+        .width('100%')
+      }
     }
-    this.editDialogControllerReady = true;
-    this.editDialogController = new CustomDialogController({
-      builder: (): void => {
-        this.MrpEditDialogBuilder();
-      },
-      cancel: (): void => {
-        getMrpNative()?.event(MR_DIALOG_EVENT, MR_DIALOG_KEY_CANCEL, 0);
-      },
-      autoCancel: true,
-      alignment: DialogAlignment.Center,
-      cornerRadius: 8,
-      customStyle: false,
-    });
+    .padding(16)
+    .width('92%')
+  }
+
+  aboutToAppear(): void {
+    if (!this.editDialogControllerReady) {
+      this.editDialogControllerReady = true;
+      this.editDialogController = new CustomDialogController({
+        builder: (): void => {
+          this.MrpEditDialogBuilder();
+        },
+        cancel: (): void => {
+          getMrpNative()?.event(MR_DIALOG_EVENT, MR_DIALOG_KEY_CANCEL, 0);
+        },
+        autoCancel: true,
+        alignment: DialogAlignment.Center,
+        cornerRadius: 8,
+        customStyle: false,
+      });
+    }
+    if (!this.msgDialogControllerReady) {
+      this.msgDialogControllerReady = true;
+      this.msgDialogController = new CustomDialogController({
+        builder: (): void => {
+          this.MrpMessageDialogBuilder();
+        },
+        cancel: (): void => {
+          getMrpNative()?.event(MR_DIALOG_EVENT, MR_DIALOG_KEY_CANCEL, 0);
+        },
+        autoCancel: true,
+        alignment: DialogAlignment.Center,
+        cornerRadius: 8,
+        customStyle: false,
+      });
+    }
   }
 
   build() {
@@ -587,7 +675,59 @@ struct Index {
       return;
     }
 
+    if (napi.onMessageUi !== undefined) {
+      napi.onMessageUi((op: number, viewKind: number, dialogType: number, title: string, text: string): void => {
+        if (op === 0) {
+          if (this.msgDialogController !== null) {
+            try {
+              this.msgDialogController.close();
+            } catch (_e) {
+            }
+          }
+          return;
+        }
+        if (op === 1 || op === 2) {
+          try {
+            if (this.editDialogController !== null) {
+              this.editDialogController.close();
+            }
+          } catch (_e) {
+          }
+        }
+        if (op === 1) {
+          this.msgDlgGen++;
+          this.msgDlgTitle = title;
+          this.msgDlgBody = text;
+          if (dialogType >= 0) {
+            this.msgDlgType = dialogType;
+          }
+          this.msgDlgIsText = viewKind === 2;
+          if (this.msgDialogController !== null) {
+            this.msgDialogController.open();
+          }
+          return;
+        }
+        if (op === 2) {
+          this.msgDlgTitle = title;
+          this.msgDlgBody = text;
+          if (dialogType >= 0) {
+            this.msgDlgType = dialogType;
+          }
+          this.msgDlgIsText = viewKind === 2;
+          return;
+        }
+      });
+    } else {
+      console.warn('libentry 无 onMessageUi：mr_dialog/mr_text 将无宿主 UI');
+    }
+
     napi.onEditRequest((title: string, text: string, type: number, maxSize: number): void => {
+      try {
+        if (this.msgDialogController !== null) {
+          this.msgDialogController.close();
+        }
+      } catch (_e) {
+      }
       this.editDlgGen++;
       this.editDlgTitle = title;
       this.editDlgText = text;

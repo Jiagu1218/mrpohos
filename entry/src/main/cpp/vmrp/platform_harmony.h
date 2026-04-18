@@ -24,4 +24,12 @@ void vmrp_setEditRequestCallback(void (*cb)(const char *title, const char *text,
 /** 在 MR_DIALOG_KEY_OK 之前调用，将 UTF-8 内容交给 mr_editGetText；传 NULL 或空串表示无内容。 */
 void harmony_edit_set_result_utf8(const char *utf8);
 
+int32 harmony_dialog_create(const char *title_ucs2be, const char *text_ucs2be, int32 type);
+int32 harmony_dialog_refresh(int32 dialog, const char *title_ucs2be, const char *text_ucs2be, int32 type);
+int32 harmony_dialog_release(int32 dialog);
+
+int32 harmony_text_create(const char *title_ucs2be, const char *text_ucs2be, int32 type);
+int32 harmony_text_refresh(int32 handle, const char *title_ucs2be, const char *text_ucs2be);
+int32 harmony_text_release(int32 handle);
+
 #endif

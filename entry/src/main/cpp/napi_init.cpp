@@ -91,6 +91,16 @@ struct EditRequestTsfnData {
     int32_t max_size;
 };
 
+static napi_threadsafe_function g_messageUiTsfn = nullptr;
+
+struct MessageUiTsfnData {
+    int32_t op;
+    int32_t view_kind;
+    int32_t dialog_type;
+    char *title;
+    char *text;
+};
+
 static OHNativeWindow *g_nativeWindow = nullptr;
 static OH_NativeXComponent *g_xComponent = nullptr;
 static pthread_mutex_t g_windowMutex = PTHREAD_MUTEX_INITIALIZER;
@@ -290,6 +300,30 @@ static void onTimerStopCallback() {
     g_mrpTimerSeq.fetch_add(1, std::memory_order_release);
 }
 
+static void callJsMessageUi(napi_env env, napi_value js_cb, void *context, void *data) {
+    if (data == nullptr) {
+        return;
+    }
+    MessageUiTsfnData *d = (MessageUiTsfnData *)data;
+    napi_value undefined;
+    napi_get_undefined(env, &undefined);
+    napi_value a0;
+    napi_value a1;
+    napi_value a2;
+    napi_value a3;
+    napi_value a4;
+    napi_create_int32(env, d->op, &a0);
+    napi_create_int32(env, d->view_kind, &a1);
+    napi_create_int32(env, d->dialog_type, &a2);
+    napi_create_string_utf8(env, d->title, NAPI_AUTO_LENGTH, &a3);
+    napi_create_string_utf8(env, d->text, NAPI_AUTO_LENGTH, &a4);
+    napi_value argv[5] = {a0, a1, a2, a3, a4};
+    napi_call_function(env, undefined, js_cb, 5, argv, nullptr);
+    free(d->title);
+    free(d->text);
+    free(d);
+}
+
 static void callJsEditRequest(napi_env env, napi_value js_cb, void *context, void *data) {
     if (data == nullptr) {
         return;
@@ -310,6 +344,35 @@ static void callJsEditRequest(napi_env env, napi_value js_cb, void *context, voi
     free(d->title);
     free(d->text);
     free(d);
+}
+
+extern "C" void vmrp_harmony_post_message_ui(int32_t op, int32_t view_kind, int32_t dialog_type, const char *title_utf8,
+    const char *text_utf8) {
+    if (!g_messageUiTsfn) {
+        static int s_warnedMissingMessageUiTsfn;
+        if (!s_warnedMissingMessageUiTsfn) {
+            s_warnedMissingMessageUiTsfn = 1;
+            OH_LOG_WARN(LOG_APP,
+                "messageUi: onMessageUi not registered (register before init/start like onEditRequest)");
+        }
+        return;
+    }
+    MessageUiTsfnData *p = (MessageUiTsfnData *)malloc(sizeof(MessageUiTsfnData));
+    if (!p) {
+        return;
+    }
+    p->op = op;
+    p->view_kind = view_kind;
+    p->dialog_type = dialog_type;
+    p->title = strdup(title_utf8 ? title_utf8 : "");
+    p->text = strdup(text_utf8 ? text_utf8 : "");
+    if (!p->title || !p->text) {
+        free(p->title);
+        free(p->text);
+        free(p);
+        return;
+    }
+    napi_call_threadsafe_function(g_messageUiTsfn, p, napi_tsfn_nonblocking);
 }
 
 extern "C" void vmrp_harmony_on_edit_request_for_platform(const char *title, const char *text, int32_t type,
@@ -575,6 +638,27 @@ static napi_value NapiSetEditResult(napi_env env, napi_callback_info info) {
     return undefined;
 }
 
+static napi_value NapiOnMessageUi(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+
+    napi_value resource_name;
+    napi_create_string_utf8(env, "MessageUiCallback", NAPI_AUTO_LENGTH, &resource_name);
+
+    napi_threadsafe_function tsfn = nullptr;
+    napi_create_threadsafe_function(env, args[0], nullptr, resource_name, 0, 1, nullptr, nullptr, nullptr,
+        callJsMessageUi, &tsfn);
+    if (g_messageUiTsfn) {
+        napi_release_threadsafe_function(g_messageUiTsfn, napi_tsfn_release);
+    }
+    g_messageUiTsfn = tsfn;
+
+    napi_value undefined;
+    napi_get_undefined(env, &undefined);
+    return undefined;
+}
+
 static napi_value NapiOnEditRequest(napi_env env, napi_callback_info info) {
     size_t argc = 1;
     napi_value args[1] = {nullptr};
@@ -614,6 +698,7 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"timer", nullptr, NapiTimer, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"onTimerStart", nullptr, NapiOnTimerStart, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"onTimerStop", nullptr, NapiOnTimerStop, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"onMessageUi", nullptr, NapiOnMessageUi, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"onEditRequest", nullptr, NapiOnEditRequest, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"setEditResult", nullptr, NapiSetEditResult, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
