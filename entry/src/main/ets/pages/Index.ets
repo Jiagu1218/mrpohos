@@ -379,7 +379,7 @@ struct Index {
       angle: 90,
       colors: [['#1f252d', 0], ['#3a424d', 0.45], ['#252b33', 1]]
     })
-    .borderRadius({ topLeft: 3, bottomLeft: 3, topRight: 9, bottomRight: 9 })
+    .borderRadius({ topLeft: 5, bottomLeft: 5, topRight: 11, bottomRight: 11 })
     .border({ width: 0.5, color: '#080a0d' })
     .shadow({ radius: 5, color: '#60000000', offsetX: 3, offsetY: 0 })
     .type(ButtonType.Normal)
@@ -405,7 +405,7 @@ struct Index {
       angle: 90,
       colors: [['#065850', 0], [ACCENT_IMPORT, 0.5], ['#054a45', 1]]
     })
-    .borderRadius({ topLeft: 3, bottomLeft: 3, topRight: 9, bottomRight: 9 })
+    .borderRadius({ topLeft: 5, bottomLeft: 5, topRight: 11, bottomRight: 11 })
     .border({ width: 0.5, color: '#033330' })
     .shadow({ radius: 5, color: '#50000000', offsetX: 3, offsetY: 0 })
     .type(ButtonType.Normal)
@@ -414,10 +414,21 @@ struct Index {
     })
   }
 
-  /** 三键一行均分；h/fs 用于功能区小字与数字区区分 */
+  /** 三键一行均分；h/fs 行间距 rowGap、圆角 br 可调 */
   @Builder
-  MrpPadRow3(l1: string, k1: number, l2: string, k2: number, l3: string, k3: number, h: number = 28, fs: number = 13) {
-    Row({ space: 6 }) {
+  MrpPadRow3(
+    l1: string,
+    k1: number,
+    l2: string,
+    k2: number,
+    l3: string,
+    k3: number,
+    h: number = 36,
+    fs: number = 15,
+    rowGap: number = 12,
+    br: number = 14
+  ) {
+    Row({ space: rowGap }) {
       Button(l1)
         .layoutWeight(1)
         .height(h)
@@ -425,9 +436,9 @@ struct Index {
         .fontColor(KEY_LABEL)
         .fontWeight(FontWeight.Medium)
         .backgroundColor(KEY_FACE)
-        .borderRadius(8)
+        .borderRadius(br)
         .border({ width: 0.5, color: KEY_FACE_BORDER })
-        .shadow({ radius: 3, color: '#38000000', offsetX: 0, offsetY: 1 })
+        .shadow({ radius: 4, color: '#40000000', offsetX: 0, offsetY: 2 })
         .type(ButtonType.Normal)
         .onClick((): void => {
           this.mrpKeyTap(k1);
@@ -439,9 +450,9 @@ struct Index {
         .fontColor(KEY_LABEL)
         .fontWeight(FontWeight.Medium)
         .backgroundColor(KEY_FACE)
-        .borderRadius(8)
+        .borderRadius(br)
         .border({ width: 0.5, color: KEY_FACE_BORDER })
-        .shadow({ radius: 3, color: '#38000000', offsetX: 0, offsetY: 1 })
+        .shadow({ radius: 4, color: '#40000000', offsetX: 0, offsetY: 2 })
         .type(ButtonType.Normal)
         .onClick((): void => {
           this.mrpKeyTap(k2);
@@ -453,9 +464,9 @@ struct Index {
         .fontColor(KEY_LABEL)
         .fontWeight(FontWeight.Medium)
         .backgroundColor(KEY_FACE)
-        .borderRadius(8)
+        .borderRadius(br)
         .border({ width: 0.5, color: KEY_FACE_BORDER })
-        .shadow({ radius: 3, color: '#38000000', offsetX: 0, offsetY: 1 })
+        .shadow({ radius: 4, color: '#40000000', offsetX: 0, offsetY: 2 })
         .type(ButtonType.Normal)
         .onClick((): void => {
           this.mrpKeyTap(k3);
@@ -555,18 +566,18 @@ struct Index {
                   .textAlign(TextAlign.Center)
 
                 Scroll() {
-                  Column({ space: 5 }) {
-                    this.MrpPadRow3('左软', MR_KEYCODE_SOFTLEFT, '↑', MR_KEYCODE_UP, '右软', MR_KEYCODE_SOFTRIGHT, 30, 10)
-                    this.MrpPadRow3('←', MR_KEYCODE_LEFT, 'OK', MR_KEYCODE_SELECT, '→', MR_KEYCODE_RIGHT, 30, 12)
-                    this.MrpPadRow3('接听', MR_KEYCODE_SEND, '↓', MR_KEYCODE_DOWN, '挂断', MR_KEYCODE_POWER, 30, 10)
+                  Column({ space: 10 }) {
+                    this.MrpPadRow3('左软', MR_KEYCODE_SOFTLEFT, '↑', MR_KEYCODE_UP, '右软', MR_KEYCODE_SOFTRIGHT, 38, 12, 14, 16)
+                    this.MrpPadRow3('←', MR_KEYCODE_LEFT, 'OK', MR_KEYCODE_SELECT, '→', MR_KEYCODE_RIGHT, 38, 15, 14, 16)
+                    this.MrpPadRow3('接听', MR_KEYCODE_SEND, '↓', MR_KEYCODE_DOWN, '挂断', MR_KEYCODE_POWER, 38, 12, 14, 16)
 
-                    this.MrpPadRow3('1', MR_KEYCODE_1, '2', MR_KEYCODE_2, '3', MR_KEYCODE_3)
-                    this.MrpPadRow3('4', MR_KEYCODE_4, '5', MR_KEYCODE_5, '6', MR_KEYCODE_6)
-                    this.MrpPadRow3('7', MR_KEYCODE_7, '8', MR_KEYCODE_8, '9', MR_KEYCODE_9)
-                    this.MrpPadRow3('*', MR_KEYCODE_STAR, '0', MR_KEYCODE_0, '#', MR_KEYCODE_POUND)
+                    this.MrpPadRow3('1', MR_KEYCODE_1, '2', MR_KEYCODE_2, '3', MR_KEYCODE_3, 36, 16, 12, 14)
+                    this.MrpPadRow3('4', MR_KEYCODE_4, '5', MR_KEYCODE_5, '6', MR_KEYCODE_6, 36, 16, 12, 14)
+                    this.MrpPadRow3('7', MR_KEYCODE_7, '8', MR_KEYCODE_8, '9', MR_KEYCODE_9, 36, 16, 12, 14)
+                    this.MrpPadRow3('*', MR_KEYCODE_STAR, '0', MR_KEYCODE_0, '#', MR_KEYCODE_POUND, 36, 16, 12, 14)
                   }
                   .width('100%')
-                  .padding({ left: 8, right: 8, bottom: 8 })
+                  .padding({ left: 10, right: 10, bottom: 12 })
                 }
                 .layoutWeight(1)
                 .scrollBar(BarState.Off)
@@ -577,18 +588,6 @@ struct Index {
               .padding({ top: 2, left: 2, right: 2, bottom: 6 })
               .backgroundColor(PHONE_KEYPAD_BG)
               .borderRadius({ topLeft: 14, topRight: 14, bottomLeft: 20, bottomRight: 20 })
-
-              Row() {
-                Column()
-                  .layoutWeight(1)
-                  .height('100%')
-                  .hitTestBehavior(HitTestMode.Transparent)
-                .width(40)
-                .height('100%')
-                .justifyContent(FlexAlign.Center)
-              }
-              .width('100%')
-              .height('100%')
             }
             .layoutWeight(1)
             .width('100%')
