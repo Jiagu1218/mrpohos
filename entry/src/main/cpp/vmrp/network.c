@@ -2,11 +2,20 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
+#include <hilog/log.h>
 
 #include "./header/network.h"
 #include "./header/posix_sockets.h"
 
-// #define NETWORK_SUPPORT
+#undef LOG_DOMAIN
+#undef LOG_TAG
+#define LOG_DOMAIN 0x0001
+#define LOG_TAG "vmrp_net"
+
+/* 鸿蒙 NDK 走 POSIX socket；未定义时 init/socket/send 等一律 MR_FAILED（原默认）。 */
+#if defined(__HARMONYOS__)
+#define NETWORK_SUPPORT
+#endif
 
 #if defined(__EMSCRIPTEN__) && defined(NETWORK_SUPPORT)
 #include <emscripten.h>
@@ -108,13 +117,13 @@ static int32 my_connectSync(SOCKET_T s, int32 ip, uint16 port) {
     clientService.sin_port = htons(port);
     clientService.sin_addr.s_addr = htonl(ip);  //inet_addr("127.0.0.1");
 
-    printf("my_connect('%s', %d)\n", inet_ntoa(clientService.sin_addr), port);
+    OH_LOG_INFO(LOG_APP, "my_connect('%{public}s', %{public}d)", inet_ntoa(clientService.sin_addr), port);
 
     if (connect(s, (struct sockaddr*)&clientService, sizeof(clientService)) != 0) {
-        printf("my_connect(0x%X) fail\n", ip);
+        OH_LOG_ERROR(LOG_APP, "my_connect(0x%{public}X) fail", ip);
         return MR_FAILED;
     }
-    printf("my_connect(0x%X) suc\n", ip);
+    OH_LOG_INFO(LOG_APP, "my_connect(0x%{public}X) suc", ip);
     return MR_SUCCESS;
 }
 
@@ -143,7 +152,7 @@ int32 my_connect(int32 s, int32 ip, uint16 port, int32 type) {
         data->state = MR_SUCCESS;  // cmwap下设置一个伪状态
         return MR_SUCCESS;
     }
-    printf("my_connect() type: %s\n", type == MR_SOCKET_BLOCK ? "block" : "async");
+    OH_LOG_INFO(LOG_APP, "my_connect() type: %{public}s", type == MR_SOCKET_BLOCK ? "block" : "async");
     if (type == MR_SOCKET_NONBLOCK) {
         connectData_t* d = malloc(sizeof(connectData_t));
         d->s = data;
@@ -173,7 +182,7 @@ int32 my_getSocketState(int32 s) {
 #ifdef NETWORK_SUPPORT
     uIntMap* obj = uIntMap_search(&sockets, (uint32_t)s);
     mSocket* p = ((mSocket*)obj->data);
-    printf("my_getSocketState(%d): %d\n", s, p->state);
+    OH_LOG_INFO(LOG_APP, "my_getSocketState(%{public}d): %{public}d", s, p->state);
     return p->state;
 #else
     return MR_FAILED;
@@ -191,7 +200,7 @@ int32 my_socket(int32 type, int32 protocol) {
     protocol = (protocol == MR_IPPROTO_TCP) ? IPPROTO_TCP : IPPROTO_UDP;
     SOCKET_T sock = socket(AF_INET, type, protocol);
     if (sock == -1) {
-        printf("my_socket() fail\n");
+        OH_LOG_ERROR(LOG_APP, "my_socket() fail");
         return MR_FAILED;
     }
     socketCounter++;
@@ -260,11 +269,11 @@ static int32 my_initNetworkSync() {
     WSADATA wsaData;
     int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (iResult != 0) {
-        printf("WSAStartup failed: %d\n", iResult);
+        OH_LOG_ERROR(LOG_APP, "WSAStartup failed: %{public}d", iResult);
         return MR_FAILED;
     }
     if (LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) {
-        printf("Could not find a usable version of Winsock.dll\n");
+        OH_LOG_ERROR(LOG_APP, "Could not find a usable version of Winsock.dll");
         my_closeNetwork();
         return MR_FAILED;
     }
@@ -275,7 +284,7 @@ static int32 my_initNetworkSync() {
     do {
         emscripten_websocket_get_ready_state(bridgeSocket, &readyState);
         emscripten_thread_sleep(100);
-        printf("readyState:%d\n", readyState);
+        OH_LOG_INFO(LOG_APP, "readyState:%{public}d", readyState);
     } while (readyState == 0);
 #endif
     return MR_SUCCESS;
@@ -284,7 +293,7 @@ static int32 my_initNetworkSync() {
 static void* my_initNetworkAsync(void* arg) {
     initNetworkAsyncData_t* data = (initNetworkAsyncData_t*)arg;
     int32 r = my_initNetworkSync();
-    printf("my_initNetworkAsync(): %d\n", r);
+    OH_LOG_INFO(LOG_APP, "my_initNetworkAsync(): %{public}d", r);
     bridge_dsm_network_cb(data->uc, (uint32_t)data->cb, r, (uint32_t)data->userData);
     free(data);
     return NULL;
@@ -297,7 +306,7 @@ static void* my_initNetworkAsync(void* arg) {
 */
 int32 my_initNetwork(uc_engine* uc, MR_INIT_NETWORK_CB cb, const char* mode, void* userData) {
 #ifdef NETWORK_SUPPORT
-    printf("my_initNetwork(0x%p, '%s')\n", cb, mode);
+    OH_LOG_INFO(LOG_APP, "my_initNetwork(%{public}p, '%{public}s')", (void*)cb, mode ? mode : "");
     if (strncasecmp("cmwap", mode, 5) == 0) {
         isCMWAP = TRUE;
     }
@@ -331,7 +340,7 @@ static int32 my_getHostByNameSync(const char* name) {
 #if 1
     struct addrinfo *result, *res;
     if (getaddrinfo(name, NULL, NULL, &result) != 0) {
-        printf("getaddrinfo failed!\n");
+        OH_LOG_ERROR(LOG_APP, "getaddrinfo failed");
         return ret;
     }
     for (res = result; res; res = res->ai_next) {
@@ -339,7 +348,7 @@ static int32 my_getHostByNameSync(const char* name) {
             struct in_addr* addr = &((struct sockaddr_in*)res->ai_addr)->sin_addr;
             // char addrstr[100];
             // printf("--- IPv4 address: %s\n", inet_ntop(res->ai_family, addr, addrstr, sizeof(addrstr)));
-            printf("--- IPv4 address: %s\n", inet_ntoa(*addr));
+            OH_LOG_INFO(LOG_APP, "--- IPv4 address: %{public}s", inet_ntoa(*addr));
             ret = ntohl((*addr).s_addr);
             break;
         }
@@ -352,7 +361,7 @@ static int32 my_getHostByNameSync(const char* name) {
             if (remoteHost->h_addr_list[0] != NULL) {
                 struct in_addr addr;
                 addr.s_addr = *(u_long*)remoteHost->h_addr_list[0];
-                printf("%s\n", inet_ntoa(addr));
+                OH_LOG_INFO(LOG_APP, "%{public}s", inet_ntoa(addr));
                 return ntohl(addr.s_addr);
             }
         }
@@ -364,7 +373,7 @@ static int32 my_getHostByNameSync(const char* name) {
 static void* my_getHostByNameAsync(void* arg) {
     getHostByNameAsyncData_t* data = (getHostByNameAsyncData_t*)arg;
     int32 r = my_getHostByNameSync(data->name);
-    printf("my_getHostByNameAsync(): 0x%X\n", r);
+    OH_LOG_INFO(LOG_APP, "my_getHostByNameAsync(): 0x%{public}X", r);
     bridge_dsm_network_cb(data->uc, (uint32_t)data->cb, r, (uint32_t)data->userData);
     free(data->name);
     free(data);
@@ -378,7 +387,7 @@ static void* my_getHostByNameAsync(void* arg) {
 */
 int32 my_getHostByName(uc_engine* uc, const char* name, MR_GET_HOST_CB cb, void* userData) {
 #ifdef NETWORK_SUPPORT
-    printf("my_getHostByName('%s', 0x%p)\n", name, cb);
+    OH_LOG_INFO(LOG_APP, "my_getHostByName('%{public}s', %{public}p)", name ? name : "", (void*)cb);
     if (cb != NULL) {
         getHostByNameAsyncData_t* data = malloc(sizeof(getHostByNameAsyncData_t));
         int len = strlen(name);
@@ -435,7 +444,7 @@ int32 my_sendto(int32 s, const char* buf, int len, int32 ip, uint16 port) {
     to.sin_port = htons(port);
     to.sin_addr.s_addr = htonl(ip);
 
-    printf("my_sendto(len:%d, '%s:%d')\n", len, inet_ntoa(to.sin_addr), port);
+    OH_LOG_INFO(LOG_APP, "my_sendto(len:%{public}d, '%{public}s:%{public}d')", len, inet_ntoa(to.sin_addr), port);
 
     int ret = sendto(data->s, buf, len, 0, (struct sockaddr*)&to, sizeof(to));
     if (ret == -1) {
@@ -538,11 +547,12 @@ int32 my_recvfrom(int32 s, char* buf, int len, int32* ip, uint16* port) {
     }
 
     if (from.sin_family != AF_INET) {
-        printf("warning my_recvfrom() recv not ipv4\n");
+        OH_LOG_WARN(LOG_APP, "warning my_recvfrom() recv not ipv4");
     }
     *port = ntohs(from.sin_port);
     *ip = ntohl(from.sin_addr.s_addr);
-    printf("my_recvfrom(len:%d, '%s:%d')\n", len, inet_ntoa(from.sin_addr), *port);
+    OH_LOG_INFO(LOG_APP, "my_recvfrom(len:%{public}d, '%{public}s:%{public}d')", len, inet_ntoa(from.sin_addr),
+        *port);
 
     return ret;
 #else

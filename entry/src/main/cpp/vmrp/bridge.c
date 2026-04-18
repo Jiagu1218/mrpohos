@@ -25,7 +25,8 @@
 #undef LOG_DOMAIN
 #undef LOG_TAG
 #define LOG_DOMAIN 0x0001
-#define LOG_TAG "vmrp_boot"
+/* 与 napi_init 一致，便于 hilog 一条命令过滤 mythroad + 启动链 */
+#define LOG_TAG "vmrp_napi"
 
 static int isPureAscii(const char *s) {
     while (*s) {
@@ -574,9 +575,13 @@ static void br_log(BridgeMap *o, uc_engine *uc) {
     uc_reg_read(uc, UC_ARM_REG_R0, &msg);
 
     char *str = (char *)getMrpMemPtr(msg);
-    // LOG("ext call %s('%s')\n", o->name, str);
-    puts(str);
-    // dumpREG(uc);
+    (void)o;
+    if (str == NULL) {
+        OH_LOG_WARN(LOG_APP, "[mr_printf] (null ptr)");
+        return;
+    }
+    /* mythroad：_mr_readFileShowInfo / init failed / mr_open(LOGI) 等均经 mr_printf→此处；原先 puts 不进 HiLog */
+    OH_LOG_INFO(LOG_APP, "[mr] %{public}s", str);
 }
 
 static void br_mem_get(BridgeMap *o, uc_engine *uc) {
@@ -622,7 +627,8 @@ static void br_timerStart(BridgeMap *o, uc_engine *uc) {
     LOG("ext call %s()\n", o->name);
     int32_t t;
     uc_reg_read(uc, UC_ARM_REG_R0, &t);
-    SET_RET_V(timerStart(t));
+    /* 规范为 16 位毫秒；R0 全字可能是 -1(0xFFFFFFFF)→65535 或更大数截断低 16 位 */
+    SET_RET_V(timerStart((uint16_t)((uint32_t)t & 0xFFFFu)));
 }
 
 static void br_test(BridgeMap *o, uc_engine *uc) {

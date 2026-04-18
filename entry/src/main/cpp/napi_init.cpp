@@ -262,10 +262,14 @@ static void onTimerStartCallback(uint16_t t) {
         }
         return;
     }
-    static int16_t s_lastLoggedT = -1;
-    if ((int)t != s_lastLoggedT) {
-        s_lastLoggedT = (int16_t)t;
-        OH_LOG_INFO(LOG_APP, "onTimerStartCallback: t=%{public}d (native sleep + JS-thread timer(); log on change only)", (int)t);
+    /* t 为 uint16：曾用 int16 记上次值会导致 65535 记成 -1，与 (int)t 比较恒不等 → 日志刷屏 */
+    static uint16_t s_lastLoggedT = 0xFFFFu;
+    static int s_haveLastLoggedT = 0;
+    if (!s_haveLastLoggedT || t != s_lastLoggedT) {
+        s_haveLastLoggedT = 1;
+        s_lastLoggedT = t;
+        OH_LOG_INFO(LOG_APP, "onTimerStartCallback: t=%{public}u (native sleep + JS-thread timer(); log on change only)",
+            (unsigned)t);
     }
     const uint64_t mySeq = ++g_mrpTimerSeq;
     const unsigned delayMs = (unsigned)t;

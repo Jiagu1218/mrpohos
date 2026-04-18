@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit';
-import { fileIo as fs, picker } from '@kit.CoreFileKit';
+import { fileIo as fs, picker, fileUri } from '@kit.CoreFileKit';
 import { promptAction } from '@kit.ArkUI';
 import testNapiImport from 'libentry.so';
 
@@ -73,6 +73,11 @@ function mrpFileNameFromUri(uri: string): string {
   return segment;
 }
 
+/**
+ * 将 DocumentPicker 返回的 URI 导入 mythroad。
+ * 依据 DevEco CodeGenie / 官方文档：用 FileUri 转成可 stat 的路径；整文件拷贝优先 fs.copyFileSync(fd, fd)（云上传示例），
+ * 避免 read/write 与 stat(fd) 在 Picker 资源上的不一致导致「大小校验失败」。
+ */
 async function copyPickerUriToMythroad(srcUri: string, sandboxPath: string): Promise<string> {
   const mythroadDir = `${sandboxPath}/mythroad`;
   if (!fs.accessSync(mythroadDir)) {
@@ -83,22 +88,62 @@ async function copyPickerUriToMythroad(srcUri: string, sandboxPath: string): Pro
     baseName = `import_${Date.now().toString()}.mrp`;
   }
   const destPath = `${mythroadDir}/${baseName}`;
-  const chunkSize = 256 * 1024;
-  const src = fs.openSync(srcUri, fs.OpenMode.READ_ONLY);
-  const dst = fs.openSync(destPath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+
+  let srcPath: string = srcUri;
   try {
-    const buf = new ArrayBuffer(chunkSize);
-    while (true) {
-      const n = fs.readSync(src.fd, buf, { offset: 0, length: chunkSize });
-      if (n <= 0) {
-        break;
-      }
-      fs.writeSync(dst.fd, buf, { offset: 0, length: n });
-    }
-  } finally {
-    fs.closeSync(src);
-    fs.closeSync(dst);
+    srcPath = new fileUri.FileUri(srcUri).path;
+  } catch (_e) {
+    srcPath = srcUri;
   }
+
+  let srcSize = 0;
+  try {
+    srcSize = fs.statSync(srcPath).size;
+  } catch (_e) {
+    try {
+      srcSize = fs.statSync(srcUri).size;
+      srcPath = srcUri;
+    } catch (_e2) {
+      throw new Error('无法 stat 源文件（请确认 Picker 返回的 URI 有效）');
+    }
+  }
+
+  const srcFile = fs.openSync(srcPath, fs.OpenMode.READ_ONLY);
+  const dstFile = fs.openSync(destPath, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+  try {
+    fs.copyFileSync(srcFile.fd, dstFile.fd);
+    try {
+      fs.fsyncSync(dstFile.fd);
+    } catch (_e) {
+      /* 部分版本无 fsyncSync */
+    }
+  } catch (e) {
+    try {
+      fs.closeSync(srcFile);
+    } catch (_e2) {
+    }
+    try {
+      fs.closeSync(dstFile);
+    } catch (_e2) {
+    }
+    try {
+      fs.unlinkSync(destPath);
+    } catch (_e3) {
+    }
+    throw e instanceof Error ? e : new Error(String(e));
+  }
+  fs.closeSync(srcFile);
+  fs.closeSync(dstFile);
+
+  const outSz = fs.statSync(destPath).size;
+  if (outSz !== srcSize) {
+    try {
+      fs.unlinkSync(destPath);
+    } catch (_e) {
+    }
+    throw new Error(`目标大小校验失败：${outSz} != ${srcSize}`);
+  }
+
   return destPath;
 }
 
@@ -630,14 +675,17 @@ struct Index {
         return;
       }
       const destPath = await copyPickerUriToMythroad(uris[0], sandboxPath);
+      const name = destPath.substring(destPath.lastIndexOf('/') + 1);
+      const sz = fs.statSync(destPath).size;
       promptAction.showToast({
-        message: `已复制到 mythroad：${destPath.substring(destPath.lastIndexOf('/') + 1)}`,
+        message: `已导入 mythroad/${name}（${sz} 字节）`,
         duration: 2500,
       });
-    } catch (_e) {
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       promptAction.showToast({
-        message: '未选择文件或导入失败',
-        duration: 2000,
+        message: `导入失败：${msg}`,
+        duration: 3500,
       });
     }
   }

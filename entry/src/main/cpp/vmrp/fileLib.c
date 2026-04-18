@@ -9,6 +9,14 @@
 #include <zlib.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef __HARMONYOS__
+#include <errno.h>
+#include <hilog/log.h>
+#undef LOG_DOMAIN
+#undef LOG_TAG
+#define LOG_DOMAIN 0x0001
+#define LOG_TAG "vmrp_napi"
+#endif
 
 static char g_sandboxPath[1024] = {0};
 
@@ -57,9 +65,15 @@ int32_t my_open(const char *filename, uint32_t mode) {
     new_mode |= O_RAW;
 #endif
 
-    f = open(mapPath((char *)filename), new_mode, S_IRWXU | S_IRWXG | S_IRWXO);
-    if (f == -1) {
-        return 0;
+    {
+        const char *full = mapPath((char *)filename);
+        f = open(full, new_mode, S_IRWXU | S_IRWXG | S_IRWXO);
+        if (f == -1) {
+#ifdef __HARMONYOS__
+            OH_LOG_ERROR(LOG_APP, "my_open failed errno=%{public}d path=%{public}s", errno, full);
+#endif
+            return 0;
+        }
     }
 
     filef_count++;

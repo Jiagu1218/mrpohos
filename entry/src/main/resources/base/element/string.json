@@ -11,6 +11,10 @@
     {
       "name": "EntryAbility_label",
       "value": "label"
+    },
+    {
+      "name": "perm_internet_reason",
+      "value": "MRP 联网与套接字"
     }
   ]
 }
