@@ -9,7 +9,9 @@
 #include <pthread.h>
 #include <sys/mman.h>
 #include <poll.h>
+#include <atomic>
 #include <chrono>
+#include <thread>
 #include <hilog/log.h>
 
 #undef LOG_DOMAIN
@@ -36,9 +38,23 @@ static void logNative(const char *fmt, ...) {
     OH_LOG_INFO(LOG_APP, "%{public}s", buf);
 }
 
-static napi_threadsafe_function g_timerStartTsfn = nullptr;
-static napi_threadsafe_function g_timerStopTsfn = nullptr;
 static napi_threadsafe_function g_editRequestTsfn = nullptr;
+/** 在 JS 线程执行 timer()；由后台线程 sleep(t) 后投递，避免 ArkTS setTimeout 漂移与节流。 */
+static napi_threadsafe_function g_timerInvokeTsfn = nullptr;
+static std::atomic<uint64_t> g_mrpTimerSeq{0};
+
+static napi_value NoopJsCallback(napi_env env, napi_callback_info info) {
+    napi_value u;
+    napi_get_undefined(env, &u);
+    return u;
+}
+
+static void CallTimerFromTsfn(napi_env env, napi_value js_callback, void *context, void *data) {
+    (void)js_callback;
+    (void)context;
+    (void)data;
+    (void)timer();
+}
 
 struct EditRequestTsfnData {
     char *title;
@@ -87,7 +103,8 @@ static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w,
         struct pollfd pollfds = {0};
         pollfds.fd = releaseFenceFd;
         pollfds.events = POLLIN;
-        poll(&pollfds, 1, 3000);
+        /* 过长等待会拖垮体感帧率；一般几毫秒内就绪，超时仍继续写避免卡死。 */
+        poll(&pollfds, 1, 32);
         close(releaseFenceFd);
     }
 
@@ -98,15 +115,17 @@ static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w,
     }
     const size_t rowStrideUint32 = (size_t)strideBytes / sizeof(uint32_t);
 
-    void *hintAddr = bufferHandle->virAddr;
-    void *mappedAddr =
-        mmap(hintAddr, (size_t)bufferHandle->size, PROT_READ | PROT_WRITE, MAP_SHARED, bufferHandle->fd, 0);
-    if (mappedAddr == MAP_FAILED && hintAddr != nullptr) {
-        mappedAddr = mmap(nullptr, (size_t)bufferHandle->size, PROT_READ | PROT_WRITE, MAP_SHARED, bufferHandle->fd, 0);
-    }
-    if (mappedAddr == MAP_FAILED) {
-        pthread_mutex_unlock(&g_windowMutex);
-        return;
+    /* 每帧 mmap/munmap 成本很高；virAddr 可用时直接写（多数设备已映射）。 */
+    bool did_mmap = false;
+    void *mappedAddr = bufferHandle->virAddr;
+    if (mappedAddr == nullptr) {
+        mappedAddr =
+            mmap(nullptr, (size_t)bufferHandle->size, PROT_READ | PROT_WRITE, MAP_SHARED, bufferHandle->fd, 0);
+        if (mappedAddr == MAP_FAILED) {
+            pthread_mutex_unlock(&g_windowMutex);
+            return;
+        }
+        did_mmap = true;
     }
 
     int32_t bufW = bufferHandle->width > 0 ? bufferHandle->width : SCREEN_WIDTH;
@@ -154,14 +173,17 @@ static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w,
         }
     }
 
-    for (int32_t sy = 0; sy < bufH && sy < SCREEN_HEIGHT; sy++) {
+    const int32_t copyH = (bufH < SCREEN_HEIGHT) ? bufH : SCREEN_HEIGHT;
+    const int32_t copyW = (bufW < SCREEN_WIDTH) ? bufW : SCREEN_WIDTH;
+    const size_t rowCopyBytes = (size_t)copyW * sizeof(uint32_t);
+    for (int32_t sy = 0; sy < copyH; sy++) {
         uint32_t *dstRow = dst + (size_t)sy * rowStrideUint32;
-        for (int32_t sx = 0; sx < bufW && sx < SCREEN_WIDTH; sx++) {
-            dstRow[sx] = g_mrpRgbaComposite[(size_t)sy * (size_t)SCREEN_WIDTH + (size_t)sx];
-        }
+        memcpy(dstRow, &g_mrpRgbaComposite[(size_t)sy * (size_t)SCREEN_WIDTH], rowCopyBytes);
     }
 
-    munmap(mappedAddr, (size_t)bufferHandle->size);
+    if (did_mmap) {
+        munmap(mappedAddr, (size_t)bufferHandle->size);
+    }
 
     Region region = {nullptr, 0};
     OH_NativeWindow_NativeWindowFlushBuffer(window, buffer, -1, region);
@@ -182,50 +204,36 @@ static void onDrawCallback(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32
 }
 
 static void onTimerStartCallback(uint16_t t) {
-    if (!g_timerStartTsfn) {
+    if (!g_timerInvokeTsfn) {
         static int s_warnedMissingTsfn;
         if (!s_warnedMissingTsfn) {
             s_warnedMissingTsfn = 1;
-            OH_LOG_WARN(LOG_APP,
-                "onTimerStartCallback: MRP timerStart(%{public}d) but JS onTimerStart not registered yet (register before init/start)",
-                (int)t);
+            OH_LOG_WARN(LOG_APP, "onTimerStartCallback: g_timerInvokeTsfn null (module Init not run yet)");
         }
         return;
     }
     static int16_t s_lastLoggedT = -1;
     if ((int)t != s_lastLoggedT) {
         s_lastLoggedT = (int16_t)t;
-        OH_LOG_INFO(LOG_APP, "onTimerStartCallback: t=%{public}d (MRP timerStart; log on change only)", (int)t);
+        OH_LOG_INFO(LOG_APP, "onTimerStartCallback: t=%{public}d (native sleep + JS-thread timer(); log on change only)", (int)t);
     }
-    uint32_t *val = (uint32_t *)malloc(sizeof(uint32_t));
-    *val = (uint32_t)t;
-    napi_call_threadsafe_function(g_timerStartTsfn, val, napi_tsfn_nonblocking);
+    const uint64_t mySeq = ++g_mrpTimerSeq;
+    const unsigned delayMs = (unsigned)t;
+    std::thread([mySeq, delayMs]() {
+        if (delayMs > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
+        }
+        if (g_mrpTimerSeq.load(std::memory_order_acquire) != mySeq) {
+            return;
+        }
+        if (g_timerInvokeTsfn) {
+            napi_call_threadsafe_function(g_timerInvokeTsfn, nullptr, napi_tsfn_blocking);
+        }
+    }).detach();
 }
 
 static void onTimerStopCallback() {
-    if (!g_timerStopTsfn) return;
-    uint32_t *val = (uint32_t *)malloc(sizeof(uint32_t));
-    *val = 0;
-    napi_call_threadsafe_function(g_timerStopTsfn, val, napi_tsfn_nonblocking);
-}
-
-static void callJsTimerStart(napi_env env, napi_value js_cb, void *context, void *data) {
-    if (data == nullptr) return;
-    uint32_t *val = (uint32_t *)data;
-    napi_value undefined;
-    napi_get_undefined(env, &undefined);
-    napi_value arg;
-    napi_create_uint32(env, *val, &arg);
-    napi_call_function(env, undefined, js_cb, 1, &arg, nullptr);
-    free(val);
-}
-
-static void callJsTimerStop(napi_env env, napi_value js_cb, void *context, void *data) {
-    if (data == nullptr) return;
-    free(data);
-    napi_value undefined;
-    napi_get_undefined(env, &undefined);
-    napi_call_function(env, undefined, js_cb, 0, nullptr, nullptr);
+    g_mrpTimerSeq.fetch_add(1, std::memory_order_release);
 }
 
 static void callJsEditRequest(napi_env env, napi_value js_cb, void *context, void *data) {
@@ -257,7 +265,7 @@ extern "C" void vmrp_harmony_on_edit_request_for_platform(const char *title, con
         if (!s_warnedMissingEditTsfn) {
             s_warnedMissingEditTsfn = 1;
             OH_LOG_WARN(LOG_APP,
-                "editCreate: JS onEditRequest not registered (register before init/start like onTimerStart)");
+                "editCreate: JS onEditRequest not registered (register before init/start)");
         }
         return;
     }
@@ -468,20 +476,8 @@ static napi_value NapiTimer(napi_env env, napi_callback_info info) {
 }
 
 static napi_value NapiOnTimerStart(napi_env env, napi_callback_info info) {
-    size_t argc = 1;
-    napi_value args[1] = {nullptr};
-    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
-
-    napi_value resource_name;
-    napi_create_string_utf8(env, "TimerStartCallback", NAPI_AUTO_LENGTH, &resource_name);
-
-    napi_threadsafe_function tsfn;
-    napi_create_threadsafe_function(env, args[0], nullptr, resource_name, 0, 1, nullptr, nullptr, nullptr, callJsTimerStart, &tsfn);
-    if (g_timerStartTsfn) {
-        napi_release_threadsafe_function(g_timerStartTsfn, napi_tsfn_release);
-    }
-    g_timerStartTsfn = tsfn;
-
+    (void)info;
+    /* MRP 定时已由 native onTimerStartCallback 调度；保留空导出以兼容旧 TypeScript。 */
     napi_value undefined;
     napi_get_undefined(env, &undefined);
     return undefined;
@@ -538,20 +534,7 @@ static napi_value NapiOnEditRequest(napi_env env, napi_callback_info info) {
 }
 
 static napi_value NapiOnTimerStop(napi_env env, napi_callback_info info) {
-    size_t argc = 1;
-    napi_value args[1] = {nullptr};
-    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
-
-    napi_value resource_name;
-    napi_create_string_utf8(env, "TimerStopCallback", NAPI_AUTO_LENGTH, &resource_name);
-
-    napi_threadsafe_function tsfn;
-    napi_create_threadsafe_function(env, args[0], nullptr, resource_name, 0, 1, nullptr, nullptr, nullptr, callJsTimerStop, &tsfn);
-    if (g_timerStopTsfn) {
-        napi_release_threadsafe_function(g_timerStopTsfn, napi_tsfn_release);
-    }
-    g_timerStopTsfn = tsfn;
-
+    (void)info;
     napi_value undefined;
     napi_get_undefined(env, &undefined);
     return undefined;
@@ -570,6 +553,21 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"setEditResult", nullptr, NapiSetEditResult, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
+
+    {
+        napi_value noop;
+        napi_create_function(env, "MrpTimerNoop", NAPI_AUTO_LENGTH, NoopJsCallback, nullptr, &noop);
+        napi_value resource_name;
+        napi_create_string_utf8(env, "MrpTimerInvoke", NAPI_AUTO_LENGTH, &resource_name);
+        napi_threadsafe_function tsfn = nullptr;
+        napi_status st = napi_create_threadsafe_function(env, noop, nullptr, resource_name, 0, 1, nullptr, nullptr,
+            nullptr, CallTimerFromTsfn, &tsfn);
+        if (st == napi_ok) {
+            g_timerInvokeTsfn = tsfn;
+        } else {
+            OH_LOG_ERROR(LOG_APP, "napi_create_threadsafe_function MrpTimerInvoke failed st=%{public}d", (int)st);
+        }
+    }
 
     napi_value exportInstance = nullptr;
     napi_status status = napi_get_named_property(env, exports, OH_NATIVE_XCOMPONENT_OBJ, &exportInstance);

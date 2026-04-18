@@ -9,8 +9,6 @@ interface MrpNativeBindings {
   start: (filename: string, extName: string) => number;
   event: (code: number, p0: number, p1: number) => number;
   timer: () => number;
-  onTimerStart: (callback: (t: number) => void) => void;
-  onTimerStop: (callback: () => void) => void;
   onEditRequest: (callback: (title: string, text: string, type: number, maxSize: number) => void) => void;
   setEditResult: (text: string) => void;
 }
@@ -211,8 +209,6 @@ struct Index {
   @State editDlgGen: number = 0;
   private xComponentWidth: number = 240;
   private xComponentHeight: number = 320;
-  /** 由 MRP timerStart(t) 调度：必须在 t 毫秒后调用一次 timer()，不能用固定短间隔轮询。 */
-  private mrpTimerTimeoutId: number = -1;
   private initialized: boolean = false;
   private editDialogController: CustomDialogController | null = null;
   private editDialogControllerReady: boolean = false;
@@ -557,18 +553,8 @@ struct Index {
       }
     });
 
-    // 须在 init/start 之前注册：MRP 会通过 timerStart(t) 通知平台，平台须在 t ms 后调用一次 timer()（mr_timer）。
-    // 若此处为空且用短间隔 setInterval 调 timer()，会在远小于 t 时误触发，表现为「几秒对话框一闪就关」。
-    napi.onTimerStop((): void => {
-      this.clearMrpTimerTimeout();
-    });
-    napi.onTimerStart((t: number): void => {
-      this.clearMrpTimerTimeout();
-      this.mrpTimerTimeoutId = setTimeout((): void => {
-        this.mrpTimerTimeoutId = -1;
-        napi.timer();
-      }, t);
-    });
+    // MRP 的 timerStart(t) / timerStop 已在 libentry（napi_init）内用 native 线程 + steady_clock 等待，
+    // 再在 JS 线程调用 timer()；此处勿再用 setTimeout，否则会比 PC/SDL 模拟器明显偏慢。
 
     let ret = napi.init(sandboxPath);
     console.info('vmrp init result: ' + ret);
@@ -627,13 +613,6 @@ struct Index {
       case TouchType.Up:
         napi.event(MR_MOUSE_UP, mx, my);
         break;
-    }
-  }
-
-  private clearMrpTimerTimeout(): void {
-    if (this.mrpTimerTimeoutId !== -1) {
-      clearTimeout(this.mrpTimerTimeoutId);
-      this.mrpTimerTimeoutId = -1;
     }
   }
 
