@@ -42,6 +42,8 @@ static napi_threadsafe_function g_editRequestTsfn = nullptr;
 /** 在 JS 线程执行 timer()；由后台线程 sleep(t) 后投递，避免 ArkTS setTimeout 漂移与节流。 */
 static napi_threadsafe_function g_timerInvokeTsfn = nullptr;
 static std::atomic<uint64_t> g_mrpTimerSeq{0};
+/** 最近一次 MRP timerStart(t) 的 t（ms），供 vmrp_perf 与 mrpT 对照。 */
+static std::atomic<uint32_t> g_lastMrpTimerT{0};
 
 static napi_value NoopJsCallback(napi_env env, napi_callback_info info) {
     napi_value u;
@@ -50,10 +52,33 @@ static napi_value NoopJsCallback(napi_env env, napi_callback_info info) {
 }
 
 static void CallTimerFromTsfn(napi_env env, napi_value js_callback, void *context, void *data) {
+    (void)env;
     (void)js_callback;
     (void)context;
     (void)data;
+    using SteadyClock = std::chrono::steady_clock;
+    const SteadyClock::time_point wall0 = SteadyClock::now();
+    static SteadyClock::time_point s_wallPrev{};
+    static int s_perfTicks = 0;
+    long gapMs = -1;
+    if (s_perfTicks > 0) {
+        gapMs = (long)std::chrono::duration_cast<std::chrono::milliseconds>(wall0 - s_wallPrev).count();
+    }
+    s_wallPrev = wall0;
+
+    const SteadyClock::time_point t0 = SteadyClock::now();
     (void)timer();
+    const SteadyClock::time_point t1 = SteadyClock::now();
+    const int emuUs = (int)std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+
+    s_perfTicks++;
+    if (s_perfTicks % 45 == 0) {
+        const uint32_t mrpT = g_lastMrpTimerT.load(std::memory_order_relaxed);
+        OH_LOG_INFO(LOG_APP,
+            "vmrp_perf#%{public}d gapMs=%{public}ld emuUs=%{public}d mrpT=%{public}u | "
+            "gap≈上帧timer内工作+sleep(mrpT)+投递抖动; emu≈本帧Unicorn+draw",
+            s_perfTicks, gapMs, emuUs, mrpT);
+    }
 }
 
 struct EditRequestTsfnData {
@@ -204,6 +229,7 @@ static void onDrawCallback(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32
 }
 
 static void onTimerStartCallback(uint16_t t) {
+    g_lastMrpTimerT.store((uint32_t)(unsigned)t, std::memory_order_relaxed);
     if (!g_timerInvokeTsfn) {
         static int s_warnedMissingTsfn;
         if (!s_warnedMissingTsfn) {
