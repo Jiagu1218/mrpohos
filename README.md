@@ -1,12 +1,15 @@
 # mrpohos - HarmonyOS MRP 应用运行时
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-HarmonyOS-green.svg)](https://developer.harmonyos.com/)
 [![Version](https://img.shields.io/badge/version-1.0.0-orange.svg)](AppScope/app.json5)
+[![GitHub](https://img.shields.io/badge/GitHub-Jiagu1218/mrpohos-black.svg)](https://github.com/Jiagu1218/mrpohos)
 
 ## 📱 项目简介
 
 **mrpohos** 是一个运行在 HarmonyOS（鸿蒙系统）上的 MRP（MythRoad Platform）应用虚拟机/模拟器。它基于 **VMRP**（Virtual MythRoad Platform）和 **Unicorn** CPU 仿真引擎，能够在现代 HarmonyOS 设备（手机、平板）上运行传统的功能机 MRP 格式应用程序和游戏。
+
+🔗 **项目地址**: https://github.com/Jiagu1218/mrpohos
 
 该项目通过 Native C/C++ 层实现 ARM 指令集仿真、MRP 运行时桥接、图形渲染和音频合成，并通过 ArkTS/ETS 构建现代化的功能机风格 UI 界面。
 
@@ -295,11 +298,12 @@ hilog -f
 | **VMRP** | GPL-3.0 | 🔴 需开源整个项目 |
 | **Unicorn Engine** | GPL-2.0/LGPL-2.0 | 🟡 动态链接可用 |
 | **FluidSynth** | LGPL-2.1+ | ✅ 动态链接可用 |
-| **mrpohos 自有代码** | MIT（建议） | ✅ 可商业化 |
+| **mrpohos 自有代码** | GPL-3.0 | ✅ 已开源 |
 
 ### 详细说明
 
 - **mrpohos 自有代码**遵循 GPL-3.0 许可证。详见 [LICENSE](LICENSE) 文件。
+- **完整源码**: https://github.com/Jiagu1218/mrpohos
 - **VMRP 子模块**使用 GPL-3.0 许可证，请参阅 `entry/src/main/cpp/vmrp/LICENSE`。
 - **Unicorn Engine** 使用 GPL-2.0/LGPL-2.0 双重许可，请参阅 `entry/src/main/cpp/unicorn/COPYING`。
 - **FluidSynth** 使用 LGPL-2.1+ 许可证，已动态链接，符合合规要求。
@@ -313,7 +317,9 @@ hilog -f
 
 ## 📞 联系方式
 
-- **Issue Tracker**: [GitHub Issues](https://github.com/Jiagu1218/mrpohos.git/issues)
+- **GitHub**: https://github.com/Jiagu1218/mrpohos
+- **Issue Tracker**: [GitHub Issues](https://github.com/Jiagu1218/mrpohos/issues)
+- **Email**: <your-email@example.com>
 
 ---
 

@@ -1,6 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { fileIo as fs, picker, fileUri } from '@kit.CoreFileKit';
-import { promptAction } from '@kit.ArkUI';
+import { promptAction, router } from '@kit.ArkUI';
 import testNapiImport from 'libentry.so';
 
 /** 与 libentry NAPI 导出一致（默认导入的类型推断在部分工具链下不完整，故显式收窄）。 */
@@ -360,6 +360,14 @@ struct Index {
     .padding(16)
     .width('92%')
   }
+  @Styles sideBtn(){
+    .width(SIDE_KEY_W)
+    .height(SIDE_KEY_H)
+    .padding({ left: 0, right: 0, top: 3, bottom: 3 })
+    .borderRadius({ topLeft: 5, bottomLeft: 5, topRight: 11, bottomRight: 11 })
+    .border({ width: 0.5, color: '#080a0d' })
+    .shadow({ radius: 5, color: '#60000000', offsetX: 3, offsetY: 0 })
+  }
 
   /** 机身右侧细长侧键（无背景条，整体外移贴外框） */
   @Builder
@@ -372,14 +380,11 @@ struct Index {
         .fontWeight(FontWeight.Medium)
         .textAlign(TextAlign.Center)
     }
-    .width(SIDE_KEY_W)
-    .height(SIDE_KEY_H)
-    .padding({ left: 0, right: 0, top: 3, bottom: 3 })
+    .sideBtn()
     .linearGradient({
       angle: 90,
       colors: [['#1f252d', 0], ['#3a424d', 0.45], ['#252b33', 1]]
     })
-    .borderRadius({ topLeft: 5, bottomLeft: 5, topRight: 11, bottomRight: 11 })
     .border({ width: 0.5, color: '#080a0d' })
     .shadow({ radius: 5, color: '#60000000', offsetX: 3, offsetY: 0 })
     .type(ButtonType.Normal)
@@ -398,19 +403,41 @@ struct Index {
         .fontWeight(FontWeight.Medium)
         .textAlign(TextAlign.Center)
     }
-    .width(SIDE_KEY_W)
-    .height(SIDE_KEY_H + 8)
-    .padding({ left: 0, right: 0, top: 3, bottom: 3 })
+    .sideBtn()
     .linearGradient({
       angle: 90,
       colors: [['#065850', 0], [ACCENT_IMPORT, 0.5], ['#054a45', 1]]
     })
-    .borderRadius({ topLeft: 5, bottomLeft: 5, topRight: 11, bottomRight: 11 })
     .border({ width: 0.5, color: '#033330' })
     .shadow({ radius: 5, color: '#50000000', offsetX: 3, offsetY: 0 })
     .type(ButtonType.Normal)
     .onClick((): void => {
       void this.pickMrpIntoMythroad();
+    })
+  }
+
+  @Builder
+  MrpSideAboutKey() {
+    Button() {
+      Text('关\n于')
+        .fontSize(8)
+        .lineHeight(10)
+        .fontColor('#ecf4f2')
+        .fontWeight(FontWeight.Medium)
+        .textAlign(TextAlign.Center)
+    }
+    .sideBtn()
+    .linearGradient({
+      angle: 90,
+      colors: [['#065850', 0], [ACCENT_IMPORT, 0.5], ['#054a45', 1]]
+    })
+    .border({ width: 0.5, color: '#033330' })
+    .shadow({ radius: 5, color: '#50000000', offsetX: 3, offsetY: 0 })
+    .type(ButtonType.Normal)
+    .onClick((): void => {
+      router.pushUrl({
+        url: 'pages/OpenSourceNotices'
+      });
     })
   }
 
@@ -515,6 +542,7 @@ struct Index {
           this.MrpSideKey('清\n除', MR_KEYCODE_CLEAR)
           this.MrpSideKey('拍\n照', MR_KEYCODE_CAPTURE)
           this.MrpSideImportKey()
+          this.MrpSideAboutKey()
         }
         .width("100%")
         .padding({bottom:150})
