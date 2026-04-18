@@ -2,8 +2,18 @@
 
 #include "harmony_midi_audio.h"
 
+#include <hilog/log.h>
+
+#undef LOG_DOMAIN
+#undef LOG_TAG
+#define LOG_DOMAIN 0x0001
+#define LOG_TAG "harmony_midi"
+
 int32 harmony_midi_init(const char *sf2_path) {
     (void)sf2_path;
+    OH_LOG_WARN(LOG_APP,
+        "harmony_midi stub: no native FluidSynth for this ABI (see thirdparty/fluidsynth/<OHOS_ARCH>); "
+        "harmony_midi_play will be silent");
     return MR_SUCCESS;
 }
 

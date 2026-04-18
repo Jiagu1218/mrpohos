@@ -13,6 +13,7 @@
 #include <chrono>
 #include <thread>
 #include <hilog/log.h>
+#include <cstdarg>
 
 #undef LOG_DOMAIN
 #undef LOG_TAG
@@ -28,6 +29,8 @@ extern "C" {
 }
 
 extern "C" uc_engine *getUcEngine();
+
+#include "mrp_gles_renderer.h"
 
 static void logNative(const char *fmt, ...) {
     va_list args;
@@ -101,69 +104,11 @@ static void resetMrpNativeDrawState(void) {
     bridge_reset_mr_draw_cache();
 }
 
-static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h, int32_t srcPitch,
+/** 将本次 dirty 的 RGB565 画入整屏 RGBA 合成缓冲（逻辑分辨率 SCREEN_*）。调用方已持 g_windowMutex。 */
+static void compositeMrpRgbaFromDraw(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h, int32_t srcPitch,
     int32_t srcFromFullScreen) {
-    pthread_mutex_lock(&g_windowMutex);
-    OHNativeWindow *window = g_nativeWindow;
-    if (!window) {
-        pthread_mutex_unlock(&g_windowMutex);
-        return;
-    }
-
-    OHNativeWindowBuffer *buffer = nullptr;
-    int releaseFenceFd = -1;
-    int32_t ret = OH_NativeWindow_NativeWindowRequestBuffer(window, &buffer, &releaseFenceFd);
-    if (ret != 0 || buffer == nullptr) {
-        pthread_mutex_unlock(&g_windowMutex);
-        return;
-    }
-
-    BufferHandle *bufferHandle = OH_NativeWindow_GetBufferHandleFromNative(buffer);
-    if (bufferHandle == nullptr) {
-        pthread_mutex_unlock(&g_windowMutex);
-        return;
-    }
-
-    if (releaseFenceFd != -1) {
-        struct pollfd pollfds = {0};
-        pollfds.fd = releaseFenceFd;
-        pollfds.events = POLLIN;
-        /* 过长等待会拖垮体感帧率；一般几毫秒内就绪，超时仍继续写避免卡死。 */
-        poll(&pollfds, 1, 32);
-        close(releaseFenceFd);
-    }
-
-    // stride 为每行字节数（见 BufferHandle 文档），真机常有行对齐；不能用 width 当 uint32 行步进，否则花屏。
-    int32_t strideBytes = bufferHandle->stride;
-    if (strideBytes < (int32_t)sizeof(uint32_t)) {
-        strideBytes = bufferHandle->width * (int32_t)sizeof(uint32_t);
-    }
-    const size_t rowStrideUint32 = (size_t)strideBytes / sizeof(uint32_t);
-
-    /* 每帧 mmap/munmap 成本很高；virAddr 可用时直接写（多数设备已映射）。 */
-    bool did_mmap = false;
-    void *mappedAddr = bufferHandle->virAddr;
-    if (mappedAddr == nullptr) {
-        mappedAddr =
-            mmap(nullptr, (size_t)bufferHandle->size, PROT_READ | PROT_WRITE, MAP_SHARED, bufferHandle->fd, 0);
-        if (mappedAddr == MAP_FAILED) {
-            pthread_mutex_unlock(&g_windowMutex);
-            return;
-        }
-        did_mmap = true;
-    }
-
-    int32_t bufW = bufferHandle->width > 0 ? bufferHandle->width : SCREEN_WIDTH;
-    int32_t bufH = bufferHandle->height > 0 ? bufferHandle->height : SCREEN_HEIGHT;
-    uint32_t *dst = (uint32_t *)mappedAddr;
-
-    static int32_t s_loggedBufferShape = 0;
-    if (!s_loggedBufferShape) {
-        OH_LOG_INFO(LOG_APP,
-            "NativeBuffer: w=%{public}d h=%{public}d strideBytes=%{public}d rowUint32=%{public}zu size=%{public}d",
-            bufW, bufH, strideBytes, rowStrideUint32, bufferHandle->size);
-        s_loggedBufferShape = 1;
-    }
+    const int32_t bufW = SCREEN_WIDTH;
+    const int32_t bufH = SCREEN_HEIGHT;
 
     if (srcPitch <= 0) {
         srcPitch = w;
@@ -197,6 +142,60 @@ static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w,
                 0xFF000000u | ((uint32_t)b << 16) | ((uint32_t)g << 8) | (uint32_t)r;
         }
     }
+}
+
+/** RequestBuffer → 拷贝合成缓冲 → Flush。已持 g_windowMutex 且 g_nativeWindow 非空。 */
+static void flushCpuNativeWindowLocked(void) {
+    OHNativeWindow *window = g_nativeWindow;
+
+    OHNativeWindowBuffer *buffer = nullptr;
+    int releaseFenceFd = -1;
+    int32_t ret = OH_NativeWindow_NativeWindowRequestBuffer(window, &buffer, &releaseFenceFd);
+    if (ret != 0 || buffer == nullptr) {
+        return;
+    }
+
+    BufferHandle *bufferHandle = OH_NativeWindow_GetBufferHandleFromNative(buffer);
+    if (bufferHandle == nullptr) {
+        return;
+    }
+
+    if (releaseFenceFd != -1) {
+        struct pollfd pollfds = {0};
+        pollfds.fd = releaseFenceFd;
+        pollfds.events = POLLIN;
+        poll(&pollfds, 1, 32);
+        close(releaseFenceFd);
+    }
+
+    int32_t strideBytes = bufferHandle->stride;
+    if (strideBytes < (int32_t)sizeof(uint32_t)) {
+        strideBytes = bufferHandle->width * (int32_t)sizeof(uint32_t);
+    }
+    const size_t rowStrideUint32 = (size_t)strideBytes / sizeof(uint32_t);
+
+    bool did_mmap = false;
+    void *mappedAddr = bufferHandle->virAddr;
+    if (mappedAddr == nullptr) {
+        mappedAddr =
+            mmap(nullptr, (size_t)bufferHandle->size, PROT_READ | PROT_WRITE, MAP_SHARED, bufferHandle->fd, 0);
+        if (mappedAddr == MAP_FAILED) {
+            return;
+        }
+        did_mmap = true;
+    }
+
+    int32_t bufW = bufferHandle->width > 0 ? bufferHandle->width : SCREEN_WIDTH;
+    int32_t bufH = bufferHandle->height > 0 ? bufferHandle->height : SCREEN_HEIGHT;
+    uint32_t *dst = (uint32_t *)mappedAddr;
+
+    static int32_t s_loggedBufferShape = 0;
+    if (!s_loggedBufferShape) {
+        OH_LOG_INFO(LOG_APP,
+            "NativeBuffer: w=%{public}d h=%{public}d strideBytes=%{public}d rowUint32=%{public}zu size=%{public}d",
+            bufW, bufH, strideBytes, rowStrideUint32, bufferHandle->size);
+        s_loggedBufferShape = 1;
+    }
 
     const int32_t copyH = (bufH < SCREEN_HEIGHT) ? bufH : SCREEN_HEIGHT;
     const int32_t copyW = (bufW < SCREEN_WIDTH) ? bufW : SCREEN_WIDTH;
@@ -212,6 +211,17 @@ static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w,
 
     Region region = {nullptr, 0};
     OH_NativeWindow_NativeWindowFlushBuffer(window, buffer, -1, region);
+}
+
+static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h, int32_t srcPitch,
+    int32_t srcFromFullScreen) {
+    pthread_mutex_lock(&g_windowMutex);
+    if (!g_nativeWindow) {
+        pthread_mutex_unlock(&g_windowMutex);
+        return;
+    }
+    compositeMrpRgbaFromDraw(bmp, x, y, w, h, srcPitch, srcFromFullScreen);
+    flushCpuNativeWindowLocked();
     pthread_mutex_unlock(&g_windowMutex);
 }
 
@@ -225,7 +235,21 @@ static void onDrawCallback(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32
             x, y, w, h, srcPitch, srcFromFullScreen, g_nativeWindow);
         drawCount++;
     }
-    renderToNativeWindow(bmp, x, y, w, h, srcPitch, srcFromFullScreen);
+
+    pthread_mutex_lock(&g_windowMutex);
+    if (!g_nativeWindow) {
+        pthread_mutex_unlock(&g_windowMutex);
+        return;
+    }
+    compositeMrpRgbaFromDraw(bmp, x, y, w, h, srcPitch, srcFromFullScreen);
+    if (mrp_gles_renderer_is_ready()) {
+        if (mrp_gles_renderer_present_rgba(g_mrpRgbaComposite, SCREEN_WIDTH, SCREEN_HEIGHT) == 0) {
+            pthread_mutex_unlock(&g_windowMutex);
+            return;
+        }
+    }
+    flushCpuNativeWindowLocked();
+    pthread_mutex_unlock(&g_windowMutex);
 }
 
 static void onTimerStartCallback(uint16_t t) {
@@ -313,27 +337,38 @@ extern "C" void vmrp_harmony_on_edit_request_for_platform(const char *title, con
 }
 
 static void OnSurfaceCreatedCB(OH_NativeXComponent *component, void *window) {
+    (void)component;
+    OHNativeWindow *w = static_cast<OHNativeWindow *>(window);
     pthread_mutex_lock(&g_windowMutex);
-    g_nativeWindow = static_cast<OHNativeWindow *>(window);
+    g_nativeWindow = w;
     pthread_mutex_unlock(&g_windowMutex);
 
-    int32_t code = SET_BUFFER_GEOMETRY;
-    OH_NativeWindow_NativeWindowHandleOpt(g_nativeWindow, code, SCREEN_WIDTH, SCREEN_HEIGHT);
+    OH_NativeWindow_NativeWindowHandleOpt(w, SET_BUFFER_GEOMETRY, SCREEN_WIDTH, SCREEN_HEIGHT);
+    OH_NativeWindow_NativeWindowHandleOpt(w, SET_FORMAT, NATIVEBUFFER_PIXEL_FMT_RGBA_8888);
 
-    int32_t formatCode = SET_FORMAT;
-    OH_NativeWindow_NativeWindowHandleOpt(g_nativeWindow, formatCode, NATIVEBUFFER_PIXEL_FMT_RGBA_8888);
+    mrp_gles_renderer_init(w, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    OH_LOG_INFO(LOG_APP, "OnSurfaceCreated: window=%{public}p, size=%{public}dx%{public}d", window, SCREEN_WIDTH, SCREEN_HEIGHT);
+    OH_LOG_INFO(LOG_APP, "OnSurfaceCreated: window=%{public}p, size=%{public}dx%{public}d", (void *)w, SCREEN_WIDTH,
+        SCREEN_HEIGHT);
 }
 
 static void OnSurfaceChangedCB(OH_NativeXComponent *component, void *window) {
+    (void)component;
+    OHNativeWindow *w = static_cast<OHNativeWindow *>(window);
     pthread_mutex_lock(&g_windowMutex);
-    g_nativeWindow = static_cast<OHNativeWindow *>(window);
+    g_nativeWindow = w;
     pthread_mutex_unlock(&g_windowMutex);
+
+    OH_NativeWindow_NativeWindowHandleOpt(w, SET_BUFFER_GEOMETRY, SCREEN_WIDTH, SCREEN_HEIGHT);
+    OH_NativeWindow_NativeWindowHandleOpt(w, SET_FORMAT, NATIVEBUFFER_PIXEL_FMT_RGBA_8888);
+    mrp_gles_renderer_init(w, SCREEN_WIDTH, SCREEN_HEIGHT);
 }
 
 static void OnSurfaceDestroyedCB(OH_NativeXComponent *component, void *window) {
+    (void)component;
+    (void)window;
     pthread_mutex_lock(&g_windowMutex);
+    mrp_gles_renderer_shutdown();
     g_nativeWindow = nullptr;
     g_mrpCompositeReady = 0;
     pthread_mutex_unlock(&g_windowMutex);

@@ -62,8 +62,12 @@ include_directories(
     ${UNICORN_INC}
 )
 
+find_library(MRP_EGL_LIB EGL)
+find_library(MRP_GLES2_LIB GLESv2)
+
 add_library(entry SHARED
     napi_init.cpp
+    mrp_gles_renderer.cpp
     ${VMRP_SOURCES}
 )
 
@@ -80,6 +84,8 @@ target_link_libraries(entry PUBLIC
     libhilog_ndk.z.so
     unicorn
     libz.so
+    ${MRP_EGL_LIB}
+    ${MRP_GLES2_LIB}
 )
 
 if(_VMRP_MIDI_LINK_NATIVE)
