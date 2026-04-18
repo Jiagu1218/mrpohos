@@ -48,11 +48,7 @@ const MR_KEYCODE_SOFTLEFT = 17;
 const MR_KEYCODE_SOFTRIGHT = 18;
 const MR_KEYCODE_SEND = 19;
 const MR_KEYCODE_SELECT = 20;
-const MR_KEYCODE_VOLUME_UP = 21;
-const MR_KEYCODE_VOLUME_DOWN = 22;
 const MR_KEYCODE_CLEAR = 23;
-const MR_KEYCODE_A = 24;
-const MR_KEYCODE_B = 25;
 const MR_KEYCODE_CAPTURE = 26;
 
 const MR_DIALOG_EVENT = 6;
@@ -69,6 +65,19 @@ const MR_EDIT_PASSWORD = 2;
 
 const SCREEN_WIDTH = 240;
 const SCREEN_HEIGHT = 320;
+
+/** 功能机外壳 / 键盘区配色（与 mythroad 内屏无关，仅宿主 UI） */
+const PHONE_SHELL = '#2c3139';
+const PHONE_SHELL_EDGE = '#1e2228';
+const PHONE_KEYPAD_BG = '#23272e';
+const KEY_FACE = '#3d4656';
+const KEY_FACE_BORDER = '#1a1e26';
+const KEY_LABEL = '#EEF2F7';
+const SCREEN_BEZEL = '#0a0a0c';
+const ACCENT_IMPORT = '#0a7a72';
+/** 机身右侧侧键条宽度基准 */
+const SIDE_KEY_W = 15;
+const SIDE_KEY_H = 38;
 
 function mrpFileNameFromUri(uri: string): string {
   const noQuery = uri.split('?')[0];
@@ -352,6 +361,109 @@ struct Index {
     .width('92%')
   }
 
+  /** 机身右侧细长侧键（无背景条，整体外移贴外框） */
+  @Builder
+  MrpSideKey(label: string, key: number) {
+    Button() {
+      Text(label)
+        .fontSize(8)
+        .lineHeight(10)
+        .fontColor('#d0d6e0')
+        .fontWeight(FontWeight.Medium)
+        .textAlign(TextAlign.Center)
+    }
+    .width(SIDE_KEY_W)
+    .height(SIDE_KEY_H)
+    .padding({ left: 0, right: 0, top: 3, bottom: 3 })
+    .linearGradient({
+      angle: 90,
+      colors: [['#1f252d', 0], ['#3a424d', 0.45], ['#252b33', 1]]
+    })
+    .borderRadius({ topLeft: 3, bottomLeft: 3, topRight: 9, bottomRight: 9 })
+    .border({ width: 0.5, color: '#080a0d' })
+    .shadow({ radius: 5, color: '#60000000', offsetX: 3, offsetY: 0 })
+    .type(ButtonType.Normal)
+    .onClick((): void => {
+      this.mrpKeyTap(key);
+    })
+  }
+
+  @Builder
+  MrpSideImportKey() {
+    Button() {
+      Text('导\n入')
+        .fontSize(8)
+        .lineHeight(10)
+        .fontColor('#ecf4f2')
+        .fontWeight(FontWeight.Medium)
+        .textAlign(TextAlign.Center)
+    }
+    .width(SIDE_KEY_W)
+    .height(SIDE_KEY_H + 8)
+    .padding({ left: 0, right: 0, top: 3, bottom: 3 })
+    .linearGradient({
+      angle: 90,
+      colors: [['#065850', 0], [ACCENT_IMPORT, 0.5], ['#054a45', 1]]
+    })
+    .borderRadius({ topLeft: 3, bottomLeft: 3, topRight: 9, bottomRight: 9 })
+    .border({ width: 0.5, color: '#033330' })
+    .shadow({ radius: 5, color: '#50000000', offsetX: 3, offsetY: 0 })
+    .type(ButtonType.Normal)
+    .onClick((): void => {
+      void this.pickMrpIntoMythroad();
+    })
+  }
+
+  /** 三键一行均分；h/fs 用于功能区小字与数字区区分 */
+  @Builder
+  MrpPadRow3(l1: string, k1: number, l2: string, k2: number, l3: string, k3: number, h: number = 28, fs: number = 13) {
+    Row({ space: 6 }) {
+      Button(l1)
+        .layoutWeight(1)
+        .height(h)
+        .fontSize(fs)
+        .fontColor(KEY_LABEL)
+        .fontWeight(FontWeight.Medium)
+        .backgroundColor(KEY_FACE)
+        .borderRadius(8)
+        .border({ width: 0.5, color: KEY_FACE_BORDER })
+        .shadow({ radius: 3, color: '#38000000', offsetX: 0, offsetY: 1 })
+        .type(ButtonType.Normal)
+        .onClick((): void => {
+          this.mrpKeyTap(k1);
+        })
+      Button(l2)
+        .layoutWeight(1)
+        .height(h)
+        .fontSize(fs)
+        .fontColor(KEY_LABEL)
+        .fontWeight(FontWeight.Medium)
+        .backgroundColor(KEY_FACE)
+        .borderRadius(8)
+        .border({ width: 0.5, color: KEY_FACE_BORDER })
+        .shadow({ radius: 3, color: '#38000000', offsetX: 0, offsetY: 1 })
+        .type(ButtonType.Normal)
+        .onClick((): void => {
+          this.mrpKeyTap(k2);
+        })
+      Button(l3)
+        .layoutWeight(1)
+        .height(h)
+        .fontSize(fs)
+        .fontColor(KEY_LABEL)
+        .fontWeight(FontWeight.Medium)
+        .backgroundColor(KEY_FACE)
+        .borderRadius(8)
+        .border({ width: 0.5, color: KEY_FACE_BORDER })
+        .shadow({ radius: 3, color: '#38000000', offsetX: 0, offsetY: 1 })
+        .type(ButtonType.Normal)
+        .onClick((): void => {
+          this.mrpKeyTap(k3);
+        })
+    }
+    .width('100%')
+  }
+
   aboutToAppear(): void {
     if (!this.editDialogControllerReady) {
       this.editDialogControllerReady = true;
@@ -387,270 +499,134 @@ struct Index {
 
   build() {
     Column() {
-      Row() {
-        XComponent({
-          id: 'mrpXComponent',
-          type: XComponentType.SURFACE,
-          libraryname: 'entry'
+      Stack({ alignContent: Alignment.Center }) {
+        Column({ space: 12 }) {
+          this.MrpSideKey('清\n除', MR_KEYCODE_CLEAR)
+          this.MrpSideKey('拍\n照', MR_KEYCODE_CAPTURE)
+          this.MrpSideImportKey()
+        }
+        .width("100%")
+        .padding({bottom:150})
+        .alignItems(HorizontalAlign.End)
+        Column() {
+          Row()
+            .width(44)
+            .height(5)
+            .borderRadius(3)
+            .backgroundColor('#3a3f48')
+            .margin({ top: 4, bottom: 4 })
+
+          Column() {
+            Column() {
+              Row() {
+                XComponent({
+                  id: 'mrpXComponent',
+                  type: XComponentType.SURFACE,
+                  libraryname: 'entry'
+                })
+                  .width(this.xComponentWidth)
+                  .height(this.xComponentHeight)
+                  .onLoad(() => {
+                    this.initEmulator();
+                  })
+                  .onTouch((event: TouchEvent) => {
+                    this.handleTouch(event);
+                  })
+              }
+              .justifyContent(FlexAlign.Center)
+              .width('100%')
+              .layoutWeight(1)
+            }
+            .width('100%')
+            .layoutWeight(1)
+            .padding(6)
+            .backgroundColor(SCREEN_BEZEL)
+            .borderRadius(12)
+            .border({ width: 1, color: '#000000' })
+
+            Stack({ alignContent: Alignment.TopStart }) {
+              Column() {
+                Text('MYTHROAD')
+                  .fontSize(9)
+                  .fontColor('#5c6570')
+                  .letterSpacing(2)
+                  .margin({ bottom: 4 })
+                  .width('100%')
+                  .textAlign(TextAlign.Center)
+
+                Scroll() {
+                  Column({ space: 5 }) {
+                    this.MrpPadRow3('左软', MR_KEYCODE_SOFTLEFT, '↑', MR_KEYCODE_UP, '右软', MR_KEYCODE_SOFTRIGHT, 30, 10)
+                    this.MrpPadRow3('←', MR_KEYCODE_LEFT, 'OK', MR_KEYCODE_SELECT, '→', MR_KEYCODE_RIGHT, 30, 12)
+                    this.MrpPadRow3('接听', MR_KEYCODE_SEND, '↓', MR_KEYCODE_DOWN, '挂断', MR_KEYCODE_POWER, 30, 10)
+
+                    this.MrpPadRow3('1', MR_KEYCODE_1, '2', MR_KEYCODE_2, '3', MR_KEYCODE_3)
+                    this.MrpPadRow3('4', MR_KEYCODE_4, '5', MR_KEYCODE_5, '6', MR_KEYCODE_6)
+                    this.MrpPadRow3('7', MR_KEYCODE_7, '8', MR_KEYCODE_8, '9', MR_KEYCODE_9)
+                    this.MrpPadRow3('*', MR_KEYCODE_STAR, '0', MR_KEYCODE_0, '#', MR_KEYCODE_POUND)
+                  }
+                  .width('100%')
+                  .padding({ left: 8, right: 8, bottom: 8 })
+                }
+                .layoutWeight(1)
+                .scrollBar(BarState.Off)
+                .edgeEffect(EdgeEffect.Spring)
+              }
+              .width('100%')
+              .height('100%')
+              .padding({ top: 2, left: 2, right: 2, bottom: 6 })
+              .backgroundColor(PHONE_KEYPAD_BG)
+              .borderRadius({ topLeft: 14, topRight: 14, bottomLeft: 20, bottomRight: 20 })
+
+              Row() {
+                Column()
+                  .layoutWeight(1)
+                  .height('100%')
+                  .hitTestBehavior(HitTestMode.Transparent)
+                .width(40)
+                .height('100%')
+                .justifyContent(FlexAlign.Center)
+              }
+              .width('100%')
+              .height('100%')
+            }
+            .layoutWeight(1)
+            .width('100%')
+            .clip(false)
+          }
+          .layoutWeight(1)
+          .width('100%')
+          .clip(false)
+
+          Blank()
+            .height(4)
+        }
+        .constraintSize({ maxWidth: 400 })
+        .width('90%')
+        .height('98%')
+        .padding({
+          top: 10,
+          bottom: 10,
+          left: 12,
+          right: 12
         })
-          .width(this.xComponentWidth)
-          .height(this.xComponentHeight)
-          .onLoad(() => {
-            this.initEmulator();
-          })
-          .onTouch((event: TouchEvent) => {
-            this.handleTouch(event);
-          })
+        .borderRadius(36)
+        .backgroundColor(PHONE_SHELL)
+        .border({ width: 1, color: PHONE_SHELL_EDGE })
+        .shadow({ radius: 28, color: '#55000000', offsetX: 0, offsetY: 12 })
+        .justifyContent(FlexAlign.Start)
+        .clip(false)
       }
-      .justifyContent(FlexAlign.Center)
       .width('100%')
       .layoutWeight(1)
-
-      Scroll() {
-        Column({ space: 4 }) {
-          Row() {
-            Button('←')
-              .width(56)
-              .height(36)
-              .fontSize(14)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_LEFT);
-              })
-            Button('↑')
-              .width(56)
-              .height(36)
-              .fontSize(14)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_UP);
-              })
-            Button('↓')
-              .width(56)
-              .height(36)
-              .fontSize(14)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_DOWN);
-              })
-            Button('→')
-              .width(56)
-              .height(36)
-              .fontSize(14)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_RIGHT);
-              })
-          }
-          .width('100%')
-          .justifyContent(FlexAlign.SpaceEvenly)
-
-          Row() {
-            Button('左软')
-              .width(72)
-              .height(36)
-              .fontSize(13)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_SOFTLEFT);
-              })
-            Button('确认')
-              .width(72)
-              .height(36)
-              .fontSize(13)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_SELECT);
-              })
-            Button('右软')
-              .width(72)
-              .height(36)
-              .fontSize(13)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_SOFTRIGHT);
-              })
-          }
-          .width('100%')
-          .justifyContent(FlexAlign.SpaceEvenly)
-
-          Row() {
-            Button('*')
-              .width(56)
-              .height(36)
-              .fontSize(14)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_STAR);
-              })
-            Button('0')
-              .width(56)
-              .height(36)
-              .fontSize(14)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_0);
-              })
-            Button('#')
-              .width(56)
-              .height(36)
-              .fontSize(14)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_POUND);
-              })
-          }
-          .width('100%')
-          .justifyContent(FlexAlign.SpaceEvenly)
-
-          Row() {
-            Button('1')
-              .width(48)
-              .height(34)
-              .fontSize(13)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_1);
-              })
-            Button('2')
-              .width(48)
-              .height(34)
-              .fontSize(13)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_2);
-              })
-            Button('3')
-              .width(48)
-              .height(34)
-              .fontSize(13)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_3);
-              })
-            Button('4')
-              .width(48)
-              .height(34)
-              .fontSize(13)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_4);
-              })
-            Button('5')
-              .width(48)
-              .height(34)
-              .fontSize(13)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_5);
-              })
-          }
-          .width('100%')
-          .justifyContent(FlexAlign.SpaceEvenly)
-
-          Row() {
-            Button('6')
-              .width(48)
-              .height(34)
-              .fontSize(13)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_6);
-              })
-            Button('7')
-              .width(48)
-              .height(34)
-              .fontSize(13)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_7);
-              })
-            Button('8')
-              .width(48)
-              .height(34)
-              .fontSize(13)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_8);
-              })
-            Button('9')
-              .width(48)
-              .height(34)
-              .fontSize(13)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_9);
-              })
-          }
-          .width('100%')
-          .justifyContent(FlexAlign.SpaceEvenly)
-
-          Row() {
-            Button('挂机')
-              .layoutWeight(1)
-              .height(34)
-              .fontSize(11)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_POWER);
-              })
-            Button('接听')
-              .layoutWeight(1)
-              .height(34)
-              .fontSize(11)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_SEND);
-              })
-            Button('清除')
-              .layoutWeight(1)
-              .height(34)
-              .fontSize(11)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_CLEAR);
-              })
-            Button('拍照')
-              .layoutWeight(1)
-              .height(34)
-              .fontSize(11)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_CAPTURE);
-              })
-          }
-          .width('100%')
-
-          Row() {
-            Button('音量+')
-              .layoutWeight(1)
-              .height(34)
-              .fontSize(12)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_VOLUME_UP);
-              })
-            Button('音量−')
-              .layoutWeight(1)
-              .height(34)
-              .fontSize(12)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_VOLUME_DOWN);
-              })
-            Button('A')
-              .layoutWeight(1)
-              .height(34)
-              .fontSize(12)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_A);
-              })
-            Button('B')
-              .layoutWeight(1)
-              .height(34)
-              .fontSize(12)
-              .onClick((): void => {
-                this.mrpKeyTap(MR_KEYCODE_B);
-              })
-          }
-          .width('100%')
-
-          Row() {
-            Button('选择 .mrp 导入 mythroad')
-              .layoutWeight(1)
-              .height(40)
-              .fontSize(13)
-              .margin({ left: 8, right: 8, bottom: 6 })
-              .onClick((): void => {
-                void this.pickMrpIntoMythroad();
-              })
-          }
-          .width('100%')
-          .justifyContent(FlexAlign.Center)
-        }
-        .width('100%')
-      }
-      .layoutWeight(1)
-      .scrollBar(BarState.Auto)
-      .edgeEffect(EdgeEffect.Spring)
     }
     .width('100%')
     .height('100%')
+    .linearGradient({
+      angle: 165,
+      colors: [['#12151c', 0.0], ['#1e232d', 0.45], ['#0d1015', 1.0]]
+    })
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 
   private initEmulator() {

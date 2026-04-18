@@ -95,6 +95,18 @@ export default class EntryAbility extends UIAbility {
         return;
       }
       hilog.info(DOMAIN, TAG, 'Succeeded in loading the content.');
+      try {
+        const win = windowStage.getMainWindowSync();
+        win.setWindowLayoutFullScreen(true);
+        win.setWindowSystemBarProperties({
+          statusBarColor: '#00000000',
+          statusBarContentColor: '#FFE8E8E8',
+          navigationBarColor: '#00000000',
+          navigationBarContentColor: '#FFE8E8E8',
+        });
+      } catch (e) {
+        hilog.warn(DOMAIN, TAG, 'immersive window props: %{public}s', JSON.stringify(e));
+      }
     });
   }
 
