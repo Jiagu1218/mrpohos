@@ -15,6 +15,10 @@
     {
       "name": "perm_internet_reason",
       "value": "MRP 联网与套接字"
+    },
+    {
+      "name": "perm_vibrate_reason",
+      "value": "MRP 游戏内震动反馈（mr_startShake）"
     }
   ]
 }

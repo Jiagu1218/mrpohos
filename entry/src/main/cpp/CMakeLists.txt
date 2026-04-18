@@ -51,6 +51,7 @@ set(VMRP_SOURCES
     ${VMRP_DIR}/utils.c
     ${VMRP_DIR}/platform_harmony.c
     ${VMRP_DIR}/gbk_conv.c
+    ${VMRP_DIR}/harmony_vibrator.c
     ${VMRP_MIDI_AUDIO_SRC}
 )
 
@@ -82,6 +83,7 @@ target_link_libraries(entry PUBLIC
     libace_ndk.z.so
     libnative_window.so
     libhilog_ndk.z.so
+    libohvibrator.z.so
     unicorn
     libz.so
     ${MRP_EGL_LIB}

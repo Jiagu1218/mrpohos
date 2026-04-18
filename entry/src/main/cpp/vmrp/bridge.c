@@ -20,6 +20,7 @@
 
 #ifndef __EMSCRIPTEN__
 #include "harmony_midi_audio.h"
+#include "harmony_vibrator.h"
 #endif
 
 #undef LOG_DOMAIN
@@ -935,7 +936,7 @@ static void br_mr_startShake(BridgeMap *o, uc_engine *uc) {
 #ifdef __EMSCRIPTEN__
     SET_RET_V(js_mr_startShake(ms));
 #else
-    SET_RET_V(MR_SUCCESS);
+    SET_RET_V(harmony_vibrator_play_ms(ms));
 #endif
 }
 
@@ -951,7 +952,7 @@ static void br_mr_stopShake(BridgeMap *o, uc_engine *uc) {
 #ifdef __EMSCRIPTEN__
     SET_RET_V(js_mr_stopShake());
 #else
-    SET_RET_V(MR_SUCCESS);
+    SET_RET_V(harmony_vibrator_cancel());
 #endif
 }
 
