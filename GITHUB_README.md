@@ -1,4 +1,4 @@
-# mrpohos - HarmonyOS MRP 应用运行时
+# 旧梦曲奇 - HarmonyOS MRP 应用运行时
 
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-HarmonyOS-green.svg)](https://developer.harmonyos.com/)
@@ -6,7 +6,7 @@
 
 ## 📱 项目简介
 
-**mrpohos** 是一个运行在 HarmonyOS（鸿蒙系统）上的 MRP（MythRoad Platform）应用虚拟机/模拟器。它基于 **VMRP** 和 **Unicorn** CPU 仿真引擎，能够在现代 HarmonyOS 设备上运行传统的功能机 MRP 格式应用程序和游戏。
+**旧梦曲奇**（原名 mrpohos）是一个运行在 HarmonyOS（鸿蒙系统）上的 MRP（MythRoad Platform）应用虚拟机/模拟器。它基于 **VMRP** 和 **Unicorn** CPU 仿真引擎，能够在现代 HarmonyOS 设备上运行传统的功能机 MRP 格式应用程序和游戏。
 
 🔗 **项目地址**: https://github.com/Jiagu1218/mrpohos
 
@@ -66,7 +66,7 @@ cd mrpohos
 - 本项目使用了多个 GPL/LGPL 许可的开源组件
 - 您可以自由使用、修改和分发，但必须遵守 GPL-3.0 许可证
 - 衍生作品也必须以 GPL-3.0 开源
-- 详见 [LICENSE](LICENSE) 文件和 [合规性分析](LICENSE_COMPLIANCE.md)
+- 详见 [LICENSE](LICENSE) 文件
 
 ## 🙏 致谢
 

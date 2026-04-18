@@ -1,4 +1,4 @@
-# mrpohos - HarmonyOS MRP 应用运行时
+# 旧梦曲奇 - HarmonyOS MRP 应用运行时
 
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-HarmonyOS-green.svg)](https://developer.harmonyos.com/)
@@ -7,7 +7,19 @@
 
 ## 📱 项目简介
 
-**mrpohos** 是一个运行在 HarmonyOS（鸿蒙系统）上的 MRP（MythRoad Platform）应用虚拟机/模拟器。它基于 **VMRP**（Virtual MythRoad Platform）和 **Unicorn** CPU 仿真引擎，能够在现代 HarmonyOS 设备（手机、平板）上运行传统的功能机 MRP 格式应用程序和游戏。
+**旧梦曲奇** 是一个运行在 HarmonyOS（鸿蒙系统）上的 MRP（MythRoad Platform）应用虚拟机/模拟器。它基于 **VMRP**（Virtual MythRoad Platform）和 **Unicorn** CPU 仿真引擎，能够在现代 HarmonyOS 设备（手机、平板）上运行传统的功能机 MRP 格式应用程序和游戏。
+
+**项目由来**
+
+怀念那个曾经的自己。别人在玩塞班机子的时候，我只有一台老破二手山寨机。某日打开了冒泡（那时还叫曲奇，这也是名称的由来），新世界的大门就此打开，开始了没日没夜的折腾，在论坛上各种找教程、找人交流。
+
+如今的游戏眼花缭乱，却再也找不回当时的乐趣了，论坛也已是过去式。这么好的平台，可惜了斯凯没赶上时代的潮流。
+
+以前的那些游戏在现在看来或许太过粗糙，但还是想再上上手，于是就有了这个项目。当然也要感谢墨水瓶和天使之翼两位大佬的开源，让这一平台可以在智能机上运行 MRP 应用。（不得不承认，AI真的是程序员拿来卷自己的，移植的大部分代码是AI帮忙处理的）。
+
+鸿蒙系统也是从发布一直用到现在，从一开始的依托安卓只有几个原生软件，到现在不断壮大，也是激起了我那段搞机时光，那种感觉又回来了。
+
+算是做点贡献给我爱过的两个平台：**冒泡MRP** 和 **鸿蒙HarmonyOS**。
 
 🔗 **项目地址**: https://github.com/Jiagu1218/mrpohos
 
@@ -40,7 +52,7 @@
 ### 项目结构
 
 ```
-mrpohos/
+旧梦曲奇/
 ├── AppScope/                  # 应用全局配置
 │   ├── app.json5             # 应用元数据 (bundleName: com.example.mrpohos)
 │   └── resources/            # 应用级资源
@@ -278,7 +290,7 @@ const SCREEN_HEIGHT = 320;  // MRP 应用高度
 
 ```bash
 # 查看应用日志
-hilog -t mrpohos
+hilog -t 旧梦曲奇
 
 # 查看 Native 层日志
 hilog | grep -i "vmrp\|unicorn\|fluidsynth"
@@ -298,11 +310,11 @@ hilog -f
 | **VMRP** | GPL-3.0 | 🔴 需开源整个项目 |
 | **Unicorn Engine** | GPL-2.0/LGPL-2.0 | 🟡 动态链接可用 |
 | **FluidSynth** | LGPL-2.1+ | ✅ 动态链接可用 |
-| **mrpohos 自有代码** | GPL-3.0 | ✅ 已开源 |
+| **旧梦曲奇自有代码** | GPL-3.0 | ✅ 已开源 |
 
 ### 详细说明
 
-- **mrpohos 自有代码**遵循 GPL-3.0 许可证。详见 [LICENSE](LICENSE) 文件。
+- **旧梦曲奇自有代码**遵循 GPL-3.0 许可证。详见 [LICENSE](LICENSE) 文件。
 - **完整源码**: https://github.com/Jiagu1218/mrpohos
 - **VMRP 子模块**使用 GPL-3.0 许可证，请参阅 `entry/src/main/cpp/vmrp/LICENSE`。
 - **Unicorn Engine** 使用 GPL-2.0/LGPL-2.0 双重许可，请参阅 `entry/src/main/cpp/unicorn/COPYING`。

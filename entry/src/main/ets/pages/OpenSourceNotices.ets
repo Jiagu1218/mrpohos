@@ -140,7 +140,7 @@ struct OpenSourceNotices {
           .lineHeight(18)
           .width('100%')
 
-        Text('最后更新：2026-04-18 | 应用版本：1.0.0')
+        Text('最后更新：2026-04-18 | 应用版本：1.0.0 | 旧梦曲奇')
           .fontSize(11)
           .fontColor('#606874')
           .width('100%')
