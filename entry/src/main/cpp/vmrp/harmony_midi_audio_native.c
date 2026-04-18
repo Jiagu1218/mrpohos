@@ -46,6 +46,16 @@ static void harmony_free_midi_owned(void) {
     }
 }
 
+/**
+ * 停止 fluid_player 后必须复位合成器：否则 fluid_synth_write_s16 仍会渲染已触发音符的
+ * release/混响尾音，游戏内关 MIDI 后 OHAudio 会持续送出非零采样，表现为喇叭余音不断。
+ */
+static void harmony_synth_silence_locked(void) {
+    if (g_synth) {
+        fluid_synth_system_reset(g_synth);
+    }
+}
+
 static void harmony_stop_player_locked(void) {
     if (g_player) {
         fluid_player_stop(g_player);
@@ -53,6 +63,7 @@ static void harmony_stop_player_locked(void) {
         g_player = NULL;
     }
     harmony_free_midi_owned();
+    harmony_synth_silence_locked();
 }
 
 static void harmony_drain_stop_request(void) {
