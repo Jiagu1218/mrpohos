@@ -188,7 +188,7 @@ static int build_gl_resources(int32_t width, int32_t height) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB565, width, height, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, nullptr);
     GLenum err = glGetError();
     if (err != GL_NO_ERROR) {
         OH_LOG_ERROR(LOG_APP, "lazy_init: glTexImage2D err=0x%{public}x", (unsigned)err);
@@ -554,14 +554,14 @@ int mrp_gles_renderer_is_ready(void) {
     return (g_oh_window != nullptr && g_pending_w > 0 && g_pending_h > 0 && !g_egl_disabled) ? 1 : 0;
 }
 
-int mrp_gles_renderer_present_rgba(const uint32_t *rgba, int32_t width, int32_t height) {
+int mrp_gles_renderer_present_rgb565(const uint16_t *rgb565, int32_t width, int32_t height) {
     static int s_log_first = 0;
     if (s_log_first++ == 0) {
-        OH_LOG_INFO(LOG_APP, "GL DIAG: present_rgba called g_oh=%{public}p w=%{public}d h=%{public}d disabled=%{public}d",
+        OH_LOG_INFO(LOG_APP, "GL DIAG: present_rgb565 called g_oh=%{public}p w=%{public}d h=%{public}d disabled=%{public}d",
             (void*)g_oh_window, width, height, g_egl_disabled);
     }
 
-    if (!rgba || width != g_pending_w || height != g_pending_h) {
+    if (!rgb565 || width != g_pending_w || height != g_pending_h) {
         return -1;
     }
     if (!g_oh_window || g_egl_disabled) {
@@ -590,7 +590,7 @@ int mrp_gles_renderer_present_rgba(const uint32_t *rgba, int32_t width, int32_t 
         static int s_warned = 0;
         if (!s_warned) {
             s_warned = 1;
-            OH_LOG_WARN(LOG_APP, "mrp_gles_renderer_present_rgba: thread changed; EGL context may fail");
+            OH_LOG_WARN(LOG_APP, "mrp_gles_renderer_present_rgb565: thread changed; EGL context may fail");
         }
     }
 
@@ -612,7 +612,7 @@ int mrp_gles_renderer_present_rgba(const uint32_t *rgba, int32_t width, int32_t 
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, g_tex);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, rgb565);
 
     glUseProgram(g_program);
     glUniform1i((GLint)g_samplerLoc, 0);

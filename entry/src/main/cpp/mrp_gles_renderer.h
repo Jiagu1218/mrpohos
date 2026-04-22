@@ -20,10 +20,10 @@ void mrp_gles_renderer_shutdown(void);
 int mrp_gles_renderer_is_ready(void);
 
 /**
- * 首次调用时在同一线程懒加载 EGL+GL，随后每帧上传 RGBA、绘制、swap。
+ * 首次调用时在同一线程懒加载 EGL+GL，随后每帧上传 RGB565 纹理、绘制、swap。
  * 返回 0 成功；非 0 时上层应回退 CPU NativeWindow 路径。
  */
-int mrp_gles_renderer_present_rgba(const uint32_t *rgba, int32_t width, int32_t height);
+int mrp_gles_renderer_present_rgb565(const uint16_t *rgb565, int32_t width, int32_t height);
 
 #ifdef __cplusplus
 }
