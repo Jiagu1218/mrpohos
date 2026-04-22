@@ -404,7 +404,6 @@ static void OnSurfaceCreatedCB(OH_NativeXComponent *component, void *window) {
     pthread_mutex_unlock(&g_windowMutex);
 
     OH_NativeWindow_NativeWindowHandleOpt(w, SET_BUFFER_GEOMETRY, SCREEN_WIDTH, SCREEN_HEIGHT);
-    OH_NativeWindow_NativeWindowHandleOpt(w, SET_FORMAT, NATIVEBUFFER_PIXEL_FMT_RGB_565);
 
     mrp_gles_renderer_init(w, SCREEN_WIDTH, SCREEN_HEIGHT);
 
@@ -420,7 +419,6 @@ static void OnSurfaceChangedCB(OH_NativeXComponent *component, void *window) {
     pthread_mutex_unlock(&g_windowMutex);
 
     OH_NativeWindow_NativeWindowHandleOpt(w, SET_BUFFER_GEOMETRY, SCREEN_WIDTH, SCREEN_HEIGHT);
-    OH_NativeWindow_NativeWindowHandleOpt(w, SET_FORMAT, NATIVEBUFFER_PIXEL_FMT_RGB_565);
     mrp_gles_renderer_init(w, SCREEN_WIDTH, SCREEN_HEIGHT);
 }
 
