@@ -64,7 +64,7 @@ include_directories(
 )
 
 find_library(MRP_EGL_LIB EGL)
-find_library(MRP_GLES2_LIB GLESv2)
+find_library(MRP_GLES3_LIB GLESv3)
 
 add_library(entry SHARED
     napi_init.cpp
@@ -87,7 +87,7 @@ target_link_libraries(entry PUBLIC
     unicorn
     libz.so
     ${MRP_EGL_LIB}
-    ${MRP_GLES2_LIB}
+    ${MRP_GLES3_LIB}
 )
 
 if(_VMRP_MIDI_LINK_NATIVE)

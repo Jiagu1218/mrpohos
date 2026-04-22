@@ -2,7 +2,7 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglplatform.h>
-#include <GLES2/gl2.h>
+#include <GLES3/gl3.h>
 #include <hilog/log.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -149,8 +149,10 @@ static void teardown_egl_gl(void) {
 static int build_gl_resources(int32_t width, int32_t height) {
     const GLubyte *glv = glGetString(GL_VERSION);
     if (glv == nullptr) {
+        EGLint eglErr = eglGetError();
         OH_LOG_ERROR(LOG_APP,
-            "lazy_init: GL_VERSION null after eglMakeCurrent — GLES 不可用，将走 CPU NativeBuffer");
+            "lazy_init: GL_VERSION null after eglMakeCurrent — eglGetError=0x%{public}x, will try fallback",
+            (unsigned)eglErr);
         return kBuildGlNoDispatch;
     }
     OH_LOG_INFO(LOG_APP, "lazy_init: GL_VERSION %{public}s", (const char *)glv);
@@ -323,9 +325,10 @@ static int lazy_init_egl_gl(void) {
         }
     }
 
+    OH_LOG_INFO(LOG_APP, "GL: trying eglGetDisplay...");
     g_dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if (g_dpy == EGL_NO_DISPLAY) {
-        OH_LOG_ERROR(LOG_APP, "lazy_init: eglGetDisplay failed");
+        OH_LOG_ERROR(LOG_APP, "GL DIAG: eglGetDisplay failed");
         note_lazy_init_failed(1);
         return 0;
     }
@@ -343,14 +346,14 @@ static int lazy_init_egl_gl(void) {
         OH_LOG_WARN(LOG_APP, "lazy_init: eglBindAPI(EGL_OPENGL_ES_API) failed, continuing");
     }
 
-    static const EGLint ctx_attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
+    static const EGLint ctx_attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
     EGLNativeWindowType native_win = reinterpret_cast<EGLNativeWindowType>(window);
 
-    static const EGLint cfg_pb_win[] = {EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT, EGL_SURFACE_TYPE,
+    static const EGLint cfg_pb_win[] = {EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT, EGL_SURFACE_TYPE,
         EGL_WINDOW_BIT | EGL_PBUFFER_BIT, EGL_BLUE_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_RED_SIZE, 8, EGL_ALPHA_SIZE, 8,
         EGL_NONE};
 
-    static const EGLint cfg_win_only[] = {EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT, EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+    static const EGLint cfg_win_only[] = {EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT, EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
         EGL_BLUE_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_RED_SIZE, 8, EGL_ALPHA_SIZE, 8, EGL_NONE};
 
     EGLint ncfg = 0;
@@ -398,13 +401,8 @@ static int lazy_init_egl_gl(void) {
         }
 
         const int br_pb = build_gl_resources(width, height);
-        if (br_pb == kBuildGlNoDispatch) {
-            abort_lazy_init_partial(pb_surf);
-            note_lazy_init_failed(1);
-            return 0;
-        }
-        if (br_pb != kBuildGlOk) {
-            OH_LOG_WARN(LOG_APP, "lazy_init: GL build on pbuffer failed, trying direct window surface");
+        if (br_pb == kBuildGlNoDispatch || br_pb == kBuildGlFail) {
+            OH_LOG_WARN(LOG_APP, "lazy_init: GL not usable on pbuffer (rc=%{public}d), trying direct window surface", br_pb);
             destroy_gl_objects();
             eglMakeCurrent(g_dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
             eglDestroySurface(g_dpy, pb_surf);
@@ -557,17 +555,27 @@ int mrp_gles_renderer_is_ready(void) {
 }
 
 int mrp_gles_renderer_present_rgba(const uint32_t *rgba, int32_t width, int32_t height) {
+    static int s_log_first = 0;
+    if (s_log_first++ == 0) {
+        OH_LOG_INFO(LOG_APP, "GL DIAG: present_rgba called g_oh=%{public}p w=%{public}d h=%{public}d disabled=%{public}d",
+            (void*)g_oh_window, width, height, g_egl_disabled);
+    }
+
     if (!rgba || width != g_pending_w || height != g_pending_h) {
         return -1;
     }
     if (!g_oh_window || g_egl_disabled) {
+        OH_LOG_WARN(LOG_APP, "GL DIAG: early return g_oh=%{public}p disabled=%{public}d", (void*)g_oh_window, g_egl_disabled);
         return -1;
     }
 
     if (!g_egl_inited) {
+        OH_LOG_INFO(LOG_APP, "GL DIAG: init EGL...");
         if (!lazy_init_egl_gl()) {
+            OH_LOG_ERROR(LOG_APP, "GL DIAG: lazy_init FAILED");
             return -1;
         }
+        OH_LOG_INFO(LOG_APP, "GL DIAG: lazy_init OK");
     }
 
     if (g_dpy == EGL_NO_DISPLAY || g_surf == EGL_NO_SURFACE || g_ctx == EGL_NO_CONTEXT) {
