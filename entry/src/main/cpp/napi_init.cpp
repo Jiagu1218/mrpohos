@@ -107,10 +107,14 @@ static pthread_mutex_t g_windowMutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* RequestBuffer 常给未初始化的新缓冲；只写 dirty 矩形其余为垃圾会闪屏。在此保留与 MRP 对齐的整屏 RGBA 再整幅上传。 */
 static uint32_t g_mrpRgbaComposite[(size_t)SCREEN_WIDTH * (size_t)SCREEN_HEIGHT];
+static uint16_t g_mrpRgb565Composite[(size_t)SCREEN_WIDTH * (size_t)SCREEN_HEIGHT]; /* RGB565 直通缓冲 */
 static uint8_t g_mrpCompositeReady;
+static int32_t g_nativeWindowFormat = NATIVEBUFFER_PIXEL_FMT_RGBA_8888; /* 当前格式：RGB565 或 RGBA8888 */
+static uint8_t g_rgb565CompositeReady;
 
 static void resetMrpNativeDrawState(void) {
     g_mrpCompositeReady = 0;
+    g_rgb565CompositeReady = 0;
     bridge_reset_mr_draw_cache();
 }
 
@@ -154,7 +158,43 @@ static void compositeMrpRgbaFromDraw(uint16_t *bmp, int32_t x, int32_t y, int32_
     }
 }
 
-/** RequestBuffer → 拷贝合成缓冲 → Flush。已持 g_windowMutex 且 g_nativeWindow 非空。 */
+/** 将本次 dirty 的 RGB565 直接写入直通缓冲（无转换）。调用方已持 g_windowMutex。 */
+static void compositeMrpRgb565FromDraw(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h, int32_t srcPitch,
+    int32_t srcFromFullScreen) {
+    const int32_t bufW = SCREEN_WIDTH;
+    const int32_t bufH = SCREEN_HEIGHT;
+
+    if (srcPitch <= 0) {
+        srcPitch = w;
+    }
+
+    if (!g_rgb565CompositeReady) {
+        const size_t n = (size_t)SCREEN_WIDTH * (size_t)SCREEN_HEIGHT;
+        for (size_t i = 0; i < n; i++) {
+            g_mrpRgb565Composite[i] = 0;
+        }
+        g_rgb565CompositeReady = 1;
+    }
+
+    for (int32_t row = 0; row < h; row++) {
+        int32_t screenY = y + row;
+        if (screenY < 0 || screenY >= SCREEN_HEIGHT || screenY >= bufH) {
+            continue;
+        }
+        for (int32_t col = 0; col < w; col++) {
+            int32_t screenX = x + col;
+            if (screenX < 0 || screenX >= SCREEN_WIDTH || screenX >= bufW) {
+                continue;
+            }
+            int32_t srcX = srcFromFullScreen ? (x + col) : col;
+            int32_t srcY = srcFromFullScreen ? (y + row) : row;
+            g_mrpRgb565Composite[(size_t)screenY * (size_t)SCREEN_WIDTH + (size_t)screenX] =
+                bmp[(size_t)srcY * (size_t)srcPitch + (size_t)srcX];
+        }
+    }
+}
+
+/** RequestBuffer → 根据 g_nativeWindowFormat 拷贝对应缓冲 → Flush。已持 g_windowMutex 且 g_nativeWindow 非空。 */
 static void flushCpuNativeWindowLocked(void) {
     OHNativeWindow *window = g_nativeWindow;
 
@@ -178,11 +218,8 @@ static void flushCpuNativeWindowLocked(void) {
         close(releaseFenceFd);
     }
 
-    int32_t strideBytes = bufferHandle->stride;
-    if (strideBytes < (int32_t)sizeof(uint32_t)) {
-        strideBytes = bufferHandle->width * (int32_t)sizeof(uint32_t);
-    }
-    const size_t rowStrideUint32 = (size_t)strideBytes / sizeof(uint32_t);
+    int32_t bufW = bufferHandle->width > 0 ? bufferHandle->width : SCREEN_WIDTH;
+    int32_t bufH = bufferHandle->height > 0 ? bufferHandle->height : SCREEN_HEIGHT;
 
     bool did_mmap = false;
     void *mappedAddr = bufferHandle->virAddr;
@@ -195,24 +232,43 @@ static void flushCpuNativeWindowLocked(void) {
         did_mmap = true;
     }
 
-    int32_t bufW = bufferHandle->width > 0 ? bufferHandle->width : SCREEN_WIDTH;
-    int32_t bufH = bufferHandle->height > 0 ? bufferHandle->height : SCREEN_HEIGHT;
-    uint32_t *dst = (uint32_t *)mappedAddr;
-
     static int32_t s_loggedBufferShape = 0;
     if (!s_loggedBufferShape) {
         OH_LOG_INFO(LOG_APP,
-            "NativeBuffer: w=%{public}d h=%{public}d strideBytes=%{public}d rowUint32=%{public}zu size=%{public}d",
-            bufW, bufH, strideBytes, rowStrideUint32, bufferHandle->size);
+            "NativeBuffer: w=%{public}d h=%{public}d stride=%{public}d format=%{public}d",
+            bufW, bufH, bufferHandle->stride, g_nativeWindowFormat);
         s_loggedBufferShape = 1;
     }
 
     const int32_t copyH = (bufH < SCREEN_HEIGHT) ? bufH : SCREEN_HEIGHT;
     const int32_t copyW = (bufW < SCREEN_WIDTH) ? bufW : SCREEN_WIDTH;
-    const size_t rowCopyBytes = (size_t)copyW * sizeof(uint32_t);
-    for (int32_t sy = 0; sy < copyH; sy++) {
-        uint32_t *dstRow = dst + (size_t)sy * rowStrideUint32;
-        memcpy(dstRow, &g_mrpRgbaComposite[(size_t)sy * (size_t)SCREEN_WIDTH], rowCopyBytes);
+
+    if (g_nativeWindowFormat == NATIVEBUFFER_PIXEL_FMT_RGB_565) {
+        /* RGB565 直通：每像素 2 字节 */
+        int32_t strideBytes = bufferHandle->stride;
+        if (strideBytes < copyW * (int32_t)sizeof(uint16_t)) {
+            strideBytes = copyW * (int32_t)sizeof(uint16_t);
+        }
+        const size_t rowStrideUint16 = (size_t)strideBytes / sizeof(uint16_t);
+        const size_t rowCopyBytes = (size_t)copyW * sizeof(uint16_t);
+        uint16_t *dst = (uint16_t *)mappedAddr;
+        for (int32_t sy = 0; sy < copyH; sy++) {
+            uint16_t *dstRow = dst + (size_t)sy * rowStrideUint16;
+            memcpy(dstRow, &g_mrpRgb565Composite[(size_t)sy * (size_t)SCREEN_WIDTH], rowCopyBytes);
+        }
+    } else {
+        /* RGBA8888：每像素 4 字节 */
+        int32_t strideBytes = bufferHandle->stride;
+        if (strideBytes < (int32_t)sizeof(uint32_t)) {
+            strideBytes = bufW * (int32_t)sizeof(uint32_t);
+        }
+        const size_t rowStrideUint32 = (size_t)strideBytes / sizeof(uint32_t);
+        const size_t rowCopyBytes = (size_t)copyW * sizeof(uint32_t);
+        uint32_t *dst = (uint32_t *)mappedAddr;
+        for (int32_t sy = 0; sy < copyH; sy++) {
+            uint32_t *dstRow = dst + (size_t)sy * rowStrideUint32;
+            memcpy(dstRow, &g_mrpRgbaComposite[(size_t)sy * (size_t)SCREEN_WIDTH], rowCopyBytes);
+        }
     }
 
     if (did_mmap) {
@@ -230,7 +286,9 @@ static void renderToNativeWindow(uint16_t *bmp, int32_t x, int32_t y, int32_t w,
         pthread_mutex_unlock(&g_windowMutex);
         return;
     }
+    /* 填充 RGBA 缓冲（GL 路径用）和 RGB565 缓冲（CPU 路径用） */
     compositeMrpRgbaFromDraw(bmp, x, y, w, h, srcPitch, srcFromFullScreen);
+    compositeMrpRgb565FromDraw(bmp, x, y, w, h, srcPitch, srcFromFullScreen);
     flushCpuNativeWindowLocked();
     pthread_mutex_unlock(&g_windowMutex);
 }
@@ -251,12 +309,17 @@ static void onDrawCallback(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32
         pthread_mutex_unlock(&g_windowMutex);
         return;
     }
+    /* 填充 RGBA 缓冲（GL 路径用）和 RGB565 缓冲（CPU 路径用） */
     compositeMrpRgbaFromDraw(bmp, x, y, w, h, srcPitch, srcFromFullScreen);
+    compositeMrpRgb565FromDraw(bmp, x, y, w, h, srcPitch, srcFromFullScreen);
     if (mrp_gles_renderer_is_ready()) {
         if (mrp_gles_renderer_present_rgba(g_mrpRgbaComposite, SCREEN_WIDTH, SCREEN_HEIGHT) == 0) {
             pthread_mutex_unlock(&g_windowMutex);
             return;
         }
+        OH_LOG_INFO(LOG_APP, ">>> 走 CPU 渲染路径（GL失败回退）<<<");
+    } else {
+        OH_LOG_INFO(LOG_APP, ">>> 走 CPU 渲染路径（无GL）<<<");
     }
     flushCpuNativeWindowLocked();
     pthread_mutex_unlock(&g_windowMutex);
@@ -411,12 +474,21 @@ static void OnSurfaceCreatedCB(OH_NativeXComponent *component, void *window) {
     pthread_mutex_unlock(&g_windowMutex);
 
     OH_NativeWindow_NativeWindowHandleOpt(w, SET_BUFFER_GEOMETRY, SCREEN_WIDTH, SCREEN_HEIGHT);
-    OH_NativeWindow_NativeWindowHandleOpt(w, SET_FORMAT, NATIVEBUFFER_PIXEL_FMT_RGBA_8888);
+
+    /* 尝试设置 RGB565 格式，失败则回退 RGBA */
+    if (OH_NativeWindow_NativeWindowHandleOpt(w, SET_FORMAT, NATIVEBUFFER_PIXEL_FMT_RGB_565) == 0) {
+        g_nativeWindowFormat = NATIVEBUFFER_PIXEL_FMT_RGB_565;
+        OH_LOG_INFO(LOG_APP, ">>> RGB565 直通模式已启用 <<<");
+    } else {
+        OH_NativeWindow_NativeWindowHandleOpt(w, SET_FORMAT, NATIVEBUFFER_PIXEL_FMT_RGBA_8888);
+        g_nativeWindowFormat = NATIVEBUFFER_PIXEL_FMT_RGBA_8888;
+        OH_LOG_INFO(LOG_APP, ">>> RGBA8888 模式（回退）<<<");
+    }
 
     mrp_gles_renderer_init(w, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    OH_LOG_INFO(LOG_APP, "OnSurfaceCreated: window=%{public}p, size=%{public}dx%{public}d", (void *)w, SCREEN_WIDTH,
-        SCREEN_HEIGHT);
+    OH_LOG_INFO(LOG_APP, "OnSurfaceCreated: window=%{public}p, size=%{public}dx%{public}d, format=%{public}d", (void *)w, SCREEN_WIDTH,
+        SCREEN_HEIGHT, g_nativeWindowFormat);
 }
 
 static void OnSurfaceChangedCB(OH_NativeXComponent *component, void *window) {
@@ -427,7 +499,14 @@ static void OnSurfaceChangedCB(OH_NativeXComponent *component, void *window) {
     pthread_mutex_unlock(&g_windowMutex);
 
     OH_NativeWindow_NativeWindowHandleOpt(w, SET_BUFFER_GEOMETRY, SCREEN_WIDTH, SCREEN_HEIGHT);
-    OH_NativeWindow_NativeWindowHandleOpt(w, SET_FORMAT, NATIVEBUFFER_PIXEL_FMT_RGBA_8888);
+
+    /* 尝试设置 RGB565 格式，失败则回退 RGBA */
+    if (OH_NativeWindow_NativeWindowHandleOpt(w, SET_FORMAT, NATIVEBUFFER_PIXEL_FMT_RGB_565) == 0) {
+        g_nativeWindowFormat = NATIVEBUFFER_PIXEL_FMT_RGB_565;
+    } else {
+        OH_NativeWindow_NativeWindowHandleOpt(w, SET_FORMAT, NATIVEBUFFER_PIXEL_FMT_RGBA_8888);
+        g_nativeWindowFormat = NATIVEBUFFER_PIXEL_FMT_RGBA_8888;
+    }
     mrp_gles_renderer_init(w, SCREEN_WIDTH, SCREEN_HEIGHT);
 }
 
