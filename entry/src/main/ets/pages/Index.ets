@@ -295,8 +295,10 @@ struct Index {
 
   @State rendererSelectedMode: number = RENDERER_AUTO;
   @State rendererActiveMode: number = 0;
+  @State pressedKey: number = -1;
   private rendererDialogController: CustomDialogController | null = null;
   private rendererDialogControllerReady: boolean = false;
+  private keyRepeatTimer: number = -1;
 
   /** $变量 仅在本组件的 @Builder 内合法；不能直接写在 CustomDialogController 的匿名 builder 里。 */
   @Builder
@@ -551,13 +553,17 @@ struct Index {
         .fontSize(fs)
         .fontColor(KEY_LABEL)
         .fontWeight(FontWeight.Medium)
-        .backgroundColor(KEY_FACE)
+        .backgroundColor(this.pressedKey === k1 ? '#5a6a82' : KEY_FACE)
         .borderRadius(br)
         .border({ width: 0.5, color: KEY_FACE_BORDER })
         .shadow({ radius: 4, color: '#40000000', offsetX: 0, offsetY: 2 })
         .type(ButtonType.Normal)
-        .onClick((): void => {
-          this.mrpKeyTap(k1);
+        .onTouch((e: TouchEvent): void => {
+          if (e.type === TouchType.Down) {
+            this.keyPressed(k1);
+          } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
+            this.keyReleased(k1);
+          }
         })
       Button(l2)
         .layoutWeight(1)
@@ -565,13 +571,17 @@ struct Index {
         .fontSize(fs)
         .fontColor(KEY_LABEL)
         .fontWeight(FontWeight.Medium)
-        .backgroundColor(KEY_FACE)
+        .backgroundColor(this.pressedKey === k2 ? '#5a6a82' : KEY_FACE)
         .borderRadius(br)
         .border({ width: 0.5, color: KEY_FACE_BORDER })
         .shadow({ radius: 4, color: '#40000000', offsetX: 0, offsetY: 2 })
         .type(ButtonType.Normal)
-        .onClick((): void => {
-          this.mrpKeyTap(k2);
+        .onTouch((e: TouchEvent): void => {
+          if (e.type === TouchType.Down) {
+            this.keyPressed(k2);
+          } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
+            this.keyReleased(k2);
+          }
         })
       Button(l3)
         .layoutWeight(1)
@@ -579,13 +589,17 @@ struct Index {
         .fontSize(fs)
         .fontColor(KEY_LABEL)
         .fontWeight(FontWeight.Medium)
-        .backgroundColor(KEY_FACE)
+        .backgroundColor(this.pressedKey === k3 ? '#5a6a82' : KEY_FACE)
         .borderRadius(br)
         .border({ width: 0.5, color: KEY_FACE_BORDER })
         .shadow({ radius: 4, color: '#40000000', offsetX: 0, offsetY: 2 })
         .type(ButtonType.Normal)
-        .onClick((): void => {
-          this.mrpKeyTap(k3);
+        .onTouch((e: TouchEvent): void => {
+          if (e.type === TouchType.Down) {
+            this.keyPressed(k3);
+          } else if (e.type === TouchType.Up || e.type === TouchType.Cancel) {
+            this.keyReleased(k3);
+          }
         })
     }
     .width('100%')
@@ -896,6 +910,53 @@ struct Index {
     }
 
     this.initialized = true;
+  }
+
+  private isRepeatableKey(key: number): boolean {
+    return key === MR_KEYCODE_UP || key === MR_KEYCODE_DOWN ||
+      key === MR_KEYCODE_LEFT || key === MR_KEYCODE_RIGHT;
+  }
+
+  private cancelKeyRepeat(): void {
+    if (this.keyRepeatTimer >= 0) {
+      clearInterval(this.keyRepeatTimer);
+      this.keyRepeatTimer = -1;
+    }
+  }
+
+  private keyPressed(key: number): void {
+    const n = getMrpNative();
+    if (!n) {
+      return;
+    }
+    this.cancelKeyRepeat();
+    this.pressedKey = key;
+    n.event(MR_KEY_PRESS, key, 0);
+
+    if (this.isRepeatableKey(key)) {
+      let count = 0;
+      this.keyRepeatTimer = setInterval((): void => {
+        count++;
+        if (count < 4) {
+          return;
+        }
+        const napi = getMrpNative();
+        if (!napi) {
+          this.cancelKeyRepeat();
+          return;
+        }
+        napi.event(MR_KEY_RELEASE, key, 0);
+        napi.event(MR_KEY_PRESS, key, 0);
+      }, 60);
+    }
+  }
+
+  private keyReleased(key: number): void {
+    this.cancelKeyRepeat();
+    if (this.pressedKey === key) {
+      this.pressedKey = -1;
+    }
+    getMrpNative()?.event(MR_KEY_RELEASE, key, 0);
   }
 
   /** 短按：按下后 holdMs 毫秒发抬起，与 mythroad 键程一致 */
