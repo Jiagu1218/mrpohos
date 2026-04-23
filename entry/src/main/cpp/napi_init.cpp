@@ -30,7 +30,7 @@ extern "C" {
 
 extern "C" uc_engine *getUcEngine();
 
-#include "mrp_gles_renderer.h"
+#include "mrp_renderer.h"
 
 static void logNative(const char *fmt, ...) {
     va_list args;
@@ -242,8 +242,8 @@ static void onDrawCallback(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32
     }
     /* 填充 RGB565 缓冲（GPU/CPU 路径共用） */
     compositeMrpRgb565FromDraw(bmp, x, y, w, h, srcPitch, srcFromFullScreen);
-    if (mrp_gles_renderer_is_ready()) {
-        if (mrp_gles_renderer_present_rgb565(g_mrpRgb565Composite, SCREEN_WIDTH, SCREEN_HEIGHT) == 0) {
+    if (mrp_renderer_is_ready()) {
+        if (mrp_renderer_present_rgb565(g_mrpRgb565Composite, SCREEN_WIDTH, SCREEN_HEIGHT) == 0) {
             pthread_mutex_unlock(&g_windowMutex);
             return;
         }
@@ -405,7 +405,7 @@ static void OnSurfaceCreatedCB(OH_NativeXComponent *component, void *window) {
 
     OH_NativeWindow_NativeWindowHandleOpt(w, SET_BUFFER_GEOMETRY, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    mrp_gles_renderer_init(w, SCREEN_WIDTH, SCREEN_HEIGHT);
+    mrp_renderer_init(w, SCREEN_WIDTH, SCREEN_HEIGHT);
 
     OH_LOG_INFO(LOG_APP, "OnSurfaceCreated: window=%{public}p, size=%{public}dx%{public}d", (void *)w, SCREEN_WIDTH,
         SCREEN_HEIGHT);
@@ -419,14 +419,14 @@ static void OnSurfaceChangedCB(OH_NativeXComponent *component, void *window) {
     pthread_mutex_unlock(&g_windowMutex);
 
     OH_NativeWindow_NativeWindowHandleOpt(w, SET_BUFFER_GEOMETRY, SCREEN_WIDTH, SCREEN_HEIGHT);
-    mrp_gles_renderer_init(w, SCREEN_WIDTH, SCREEN_HEIGHT);
+    mrp_renderer_init(w, SCREEN_WIDTH, SCREEN_HEIGHT);
 }
 
 static void OnSurfaceDestroyedCB(OH_NativeXComponent *component, void *window) {
     (void)component;
     (void)window;
     pthread_mutex_lock(&g_windowMutex);
-    mrp_gles_renderer_shutdown();
+    mrp_renderer_shutdown();
     g_nativeWindow = nullptr;
     g_rgb565CompositeReady = 0;
     pthread_mutex_unlock(&g_windowMutex);
@@ -680,6 +680,32 @@ static napi_value NapiOnTimerStop(napi_env env, napi_callback_info info) {
     return undefined;
 }
 
+static napi_value NapiSetRendererMode(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1] = {nullptr};
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    int32_t mode = 0;
+    napi_get_value_int32(env, args[0], &mode);
+    mrp_renderer_set_mode(mode);
+    napi_value undefined;
+    napi_get_undefined(env, &undefined);
+    return undefined;
+}
+
+static napi_value NapiGetRendererMode(napi_env env, napi_callback_info info) {
+    (void)info;
+    napi_value result;
+    napi_create_int32(env, mrp_renderer_get_mode(), &result);
+    return result;
+}
+
+static napi_value NapiGetActiveRendererMode(napi_env env, napi_callback_info info) {
+    (void)info;
+    napi_value result;
+    napi_create_int32(env, mrp_renderer_get_active_mode(), &result);
+    return result;
+}
+
 EXTERN_C_START
 static napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor desc[] = {
@@ -692,6 +718,9 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"onMessageUi", nullptr, NapiOnMessageUi, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"onEditRequest", nullptr, NapiOnEditRequest, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"setEditResult", nullptr, NapiSetEditResult, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"setRendererMode", nullptr, NapiSetRendererMode, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"getRendererMode", nullptr, NapiGetRendererMode, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"getActiveRendererMode", nullptr, NapiGetActiveRendererMode, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
 

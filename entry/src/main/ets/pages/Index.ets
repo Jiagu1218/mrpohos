@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { fileIo as fs, picker, fileUri } from '@kit.CoreFileKit';
 import { promptAction, router } from '@kit.ArkUI';
+import { preferences } from '@kit.ArkData';
 import testNapiImport from 'libentry.so';
 
 /** 与 libentry NAPI 导出一致（默认导入的类型推断在部分工具链下不完整，故显式收窄）。 */
@@ -13,6 +14,9 @@ interface MrpNativeBindings {
   onMessageUi?: (callback: (op: number, viewKind: number, dialogType: number, title: string, text: string) => void) => void;
   onEditRequest: (callback: (title: string, text: string, type: number, maxSize: number) => void) => void;
   setEditResult: (text: string) => void;
+  setRendererMode?: (mode: number) => void;
+  getRendererMode?: () => number;
+  getActiveRendererMode?: () => number;
 }
 
 /** libentry 若因缺依赖 .so 未加载成功，导入值为 undefined，须避免直接访问成员导致进程退出。 */
@@ -78,6 +82,13 @@ const ACCENT_IMPORT = '#0a7a72';
 /** 机身右侧侧键条宽度基准 */
 const SIDE_KEY_W = 15;
 const SIDE_KEY_H = 38;
+
+const RENDERER_AUTO = 0;
+const RENDERER_VULKAN = 1;
+const RENDERER_GLES = 2;
+const RENDERER_CPU = 3;
+const RENDERER_PREFS_KEY = 'mrp_renderer_mode';
+const RENDERER_PREFS_STORE = 'mrp_prefs';
 
 function mrpFileNameFromUri(uri: string): string {
   const noQuery = uri.split('?')[0];
@@ -282,6 +293,11 @@ struct Index {
   private msgDialogController: CustomDialogController | null = null;
   private msgDialogControllerReady: boolean = false;
 
+  @State rendererSelectedMode: number = RENDERER_AUTO;
+  @State rendererActiveMode: number = 0;
+  private rendererDialogController: CustomDialogController | null = null;
+  private rendererDialogControllerReady: boolean = false;
+
   /** $变量 仅在本组件的 @Builder 内合法；不能直接写在 CustomDialogController 的匿名 builder 里。 */
   @Builder
   MrpEditDialogBuilder() {
@@ -359,8 +375,56 @@ struct Index {
     }
     .padding(16)
     .width('92%')
-  }
-  @Styles sideBtn(){
+   }
+   @Builder
+   MrpRendererDialogBuilder() {
+     Column({ space: 12 }) {
+       Text('渲染模式')
+         .fontSize(18)
+         .fontWeight(FontWeight.Medium)
+         .fontFamily('HarmonyOS Sans')
+         .width('100%')
+       Column({ space: 8 }) {
+         this.RendererRadioRow('自动（推荐）', RENDERER_AUTO)
+         this.RendererRadioRow('Vulkan', RENDERER_VULKAN)
+         this.RendererRadioRow('GLES', RENDERER_GLES)
+         this.RendererRadioRow('CPU', RENDERER_CPU)
+       }
+       .width('100%')
+       Text(this.activeRendererLabel())
+         .fontSize(12)
+         .fontColor('#8a9ab5')
+         .fontFamily('HarmonyOS Sans')
+         .width('100%')
+         .textAlign(TextAlign.Center)
+     }
+     .padding(16)
+     .width('90%')
+   }
+   @Builder
+   RendererRadioRow(label: string, mode: number) {
+     Row({ space: 8 }) {
+       Radio({ value: label, group: 'rendererModeGroup' })
+         .checked(this.rendererSelectedMode === mode)
+         .onChange((isChecked: boolean) => {
+           if (isChecked) {
+             this.rendererSelectedMode = mode;
+             const napi = getMrpNative();
+             if (napi) {
+               napi.setRendererMode?.(mode);
+             }
+             this.saveRendererPrefs(mode);
+           }
+         })
+         .width(20)
+         .height(20)
+       Text(label)
+         .fontSize(15)
+         .fontFamily('HarmonyOS Sans')
+     }
+     .width('100%')
+   }
+   @Styles sideBtn(){
     .width(SIDE_KEY_W)
     .height(SIDE_KEY_H)
     .padding({ left: 0, right: 0, top: 3, bottom: 3 })
@@ -441,6 +505,31 @@ struct Index {
     })
   }
 
+  @Builder
+  MrpSideRendererKey() {
+    Button() {
+      Text('渲\n染')
+        .fontSize(8)
+        .lineHeight(10)
+        .fontColor('#ecf4f2')
+        .fontWeight(FontWeight.Medium)
+        .textAlign(TextAlign.Center)
+    }
+    .sideBtn()
+    .linearGradient({
+      angle: 90,
+      colors: [['#065850', 0], [ACCENT_IMPORT, 0.5], ['#054a45', 1]]
+    })
+    .border({ width: 0.5, color: '#033330' })
+    .shadow({ radius: 5, color: '#50000000', offsetX: 3, offsetY: 0 })
+    .type(ButtonType.Normal)
+    .onClick((): void => {
+      if (this.rendererDialogController !== null) {
+        this.rendererDialogController.open();
+      }
+    })
+  }
+
   /** 三键一行均分；h/fs 行间距 rowGap、圆角 br 可调 */
   @Builder
   MrpPadRow3(
@@ -500,9 +589,44 @@ struct Index {
         })
     }
     .width('100%')
-  }
+   }
 
-  aboutToAppear(): void {
+   private activeRendererLabel(): string {
+     const napi = getMrpNative();
+     if (napi) {
+       this.rendererActiveMode = napi.getActiveRendererMode?.() ?? 0;
+     }
+     const names: string[] = ['未初始化', 'Vulkan', 'GLES', 'CPU'];
+     const label = `当前: ${names[this.rendererActiveMode] || '?'}`;
+     if (this.rendererSelectedMode !== RENDERER_AUTO && this.rendererSelectedMode !== this.rendererActiveMode && this.rendererActiveMode > 0) {
+       const preferred = names[this.rendererSelectedMode] || '?';
+       return `${label}（${preferred} 不可用）`;
+     }
+     return label;
+   }
+
+   private saveRendererPrefs(mode: number): void {
+     try {
+       const ctx = getContext(this) as common.UIAbilityContext;
+       const pf = preferences.getPreferencesSync(ctx, { name: RENDERER_PREFS_STORE });
+       pf.putSync(RENDERER_PREFS_KEY, mode);
+       pf.flush();
+     } catch (_e) {
+     }
+   }
+
+   private loadRendererPrefs(): number {
+     try {
+       const ctx = getContext(this) as common.UIAbilityContext;
+       const pf = preferences.getPreferencesSync(ctx, { name: RENDERER_PREFS_STORE });
+       const val = pf.getSync(RENDERER_PREFS_KEY, RENDERER_AUTO) as number;
+       return val;
+     } catch (_e) {
+       return RENDERER_AUTO;
+     }
+   }
+
+   aboutToAppear(): void {
     if (!this.editDialogControllerReady) {
       this.editDialogControllerReady = true;
       this.editDialogController = new CustomDialogController({
@@ -533,6 +657,24 @@ struct Index {
         customStyle: false,
       });
     }
+    if (!this.rendererDialogControllerReady) {
+      this.rendererDialogControllerReady = true;
+      this.rendererDialogController = new CustomDialogController({
+        builder: (): void => {
+          this.MrpRendererDialogBuilder();
+        },
+        autoCancel: true,
+        alignment: DialogAlignment.Center,
+        cornerRadius: 8,
+        customStyle: false,
+      });
+    }
+    const savedMode = this.loadRendererPrefs();
+    this.rendererSelectedMode = savedMode;
+    const napi = getMrpNative();
+    if (napi) {
+      napi.setRendererMode?.(savedMode);
+    }
   }
 
   build() {
@@ -543,6 +685,7 @@ struct Index {
           this.MrpSideKey('拍\n照', MR_KEYCODE_CAPTURE)
           this.MrpSideImportKey()
           this.MrpSideAboutKey()
+          this.MrpSideRendererKey()
         }
         .width("100%")
         .padding({bottom:150})

@@ -65,10 +65,13 @@ include_directories(
 
 find_library(MRP_EGL_LIB EGL)
 find_library(MRP_GLES3_LIB GLESv3)
+find_library(MRP_VULKAN_LIB vulkan)
 
 add_library(entry SHARED
     napi_init.cpp
+    mrp_renderer.cpp
     mrp_gles_renderer.cpp
+    mrp_vulkan_renderer.cpp
     ${VMRP_SOURCES}
 )
 
@@ -76,18 +79,22 @@ target_compile_definitions(entry PRIVATE
     __HARMONYOS__
     UNICORN_HAS_ARM
     VMRP
+    VK_USE_PLATFORM_OHOS=1
 )
 
 target_link_libraries(entry PUBLIC
     libace_napi.z.so
     libace_ndk.z.so
     libnative_window.so
+    libnative_image.so
+    libnative_buffer.so
     libhilog_ndk.z.so
     libohvibrator.z.so
     unicorn
     libz.so
     ${MRP_EGL_LIB}
     ${MRP_GLES3_LIB}
+    ${MRP_VULKAN_LIB}
 )
 
 if(_VMRP_MIDI_LINK_NATIVE)

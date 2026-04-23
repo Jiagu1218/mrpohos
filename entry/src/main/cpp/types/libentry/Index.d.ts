@@ -9,3 +9,6 @@ export declare const onTimerStop: (callback: () => void) => void;
 export declare const onMessageUi: (callback: (op: number, viewKind: number, dialogType: number, title: string, text: string) => void) => void;
 export declare const onEditRequest: (callback: (title: string, text: string, type: number, maxSize: number) => void) => void;
 export declare const setEditResult: (text: string) => void;
+export declare const setRendererMode: (mode: number) => void;
+export declare const getRendererMode: () => number;
+export declare const getActiveRendererMode: () => number;
