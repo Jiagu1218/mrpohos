@@ -29,6 +29,7 @@ static GLuint g_posLoc = 0;
 static GLuint g_uvLoc = 0;
 static GLuint g_samplerLoc = 0;
 
+static GLuint g_vbo = 0;
 static int32_t g_texW = 0;
 static int32_t g_texH = 0;
 static int g_egl_inited = 0;
@@ -106,6 +107,10 @@ static void destroy_gl_objects(void) {
     if (g_tex) {
         glDeleteTextures(1, &g_tex);
         g_tex = 0;
+    }
+    if (g_vbo) {
+        glDeleteBuffers(1, &g_vbo);
+        g_vbo = 0;
     }
     if (g_program) {
         glDeleteProgram(g_program);
@@ -186,7 +191,7 @@ static int build_gl_resources(int32_t width, int32_t height) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB565, width, height, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, nullptr);
     GLenum err = glGetError();
@@ -198,6 +203,21 @@ static int build_gl_resources(int32_t width, int32_t height) {
 
     g_texW = width;
     g_texH = height;
+
+    if (g_vbo) {
+        glDeleteBuffers(1, &g_vbo);
+    }
+    static const GLfloat kVerts[] = {
+        -1.0f, -1.0f, 0.0f, 0.0f,
+         1.0f, -1.0f, 1.0f, 0.0f,
+        -1.0f,  1.0f, 0.0f, 1.0f,
+         1.0f,  1.0f, 1.0f, 1.0f,
+    };
+    glGenBuffers(1, &g_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(kVerts), kVerts, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
     return kBuildGlOk;
 }
 
@@ -617,20 +637,15 @@ int mrp_gles_renderer_present_rgb565(const uint16_t *rgb565, int32_t width, int3
     glUseProgram(g_program);
     glUniform1i((GLint)g_samplerLoc, 0);
 
-    const GLfloat verts[] = {
-        -1.0f, -1.0f, 0.0f, 0.0f,
-        1.0f, -1.0f, 1.0f, 0.0f,
-        -1.0f, 1.0f, 0.0f, 1.0f,
-        1.0f, 1.0f, 1.0f, 1.0f,
-    };
-
-    glVertexAttribPointer((GLuint)g_posLoc, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), verts);
-    glVertexAttribPointer((GLuint)g_uvLoc, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), verts + 2);
+    glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
+    glVertexAttribPointer((GLuint)g_posLoc, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (const void *)0);
+    glVertexAttribPointer((GLuint)g_uvLoc, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (const void *)(2 * sizeof(GLfloat)));
     glEnableVertexAttribArray((GLuint)g_posLoc);
     glEnableVertexAttribArray((GLuint)g_uvLoc);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glDisableVertexAttribArray((GLuint)g_posLoc);
     glDisableVertexAttribArray((GLuint)g_uvLoc);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     if (!eglSwapBuffers(g_dpy, g_surf)) {
         static int s_swap_fail;
