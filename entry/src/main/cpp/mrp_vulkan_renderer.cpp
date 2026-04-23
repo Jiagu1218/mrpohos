@@ -49,6 +49,7 @@ static VkImage g_texImage = VK_NULL_HANDLE;
 static VkDeviceMemory g_texMem = VK_NULL_HANDLE;
 static VkImageView g_texView = VK_NULL_HANDLE;
 static VkDeviceSize g_texMemSize = 0;
+static VkDeviceSize g_texRowPitch = 0;
 static int32_t g_texW = 0;
 static int32_t g_texH = 0;
 
@@ -510,6 +511,12 @@ static int create_texture(int32_t w, int32_t h) {
         OH_LOG_ERROR(LOG_APP, "vulkan: vkAllocateMemory (texture) failed %{public}d", (int)res);
         return 0;
     }
+
+    VkImageSubresource subresC = {};
+    subresC.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    VkSubresourceLayout layoutC;
+    vkGetImageSubresourceLayout(g_device, g_texImage, &subresC, &layoutC);
+    g_texRowPitch = layoutC.rowPitch;
     vkBindImageMemory(g_device, g_texImage, g_texMem, 0);
 
     VkImageViewCreateInfo ivci = {};
@@ -866,20 +873,14 @@ int mrp_vulkan_present_rgb565(const uint16_t *rgb565, int32_t width, int32_t hei
 
     void *texData = nullptr;
     vkMapMemory(g_device, g_texMem, 0, g_texMemSize, 0, &texData);
-    VkImageSubresource subres = {};
-    subres.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    subres.mipLevel = 0;
-    subres.arrayLayer = 0;
-    VkSubresourceLayout layout;
-    vkGetImageSubresourceLayout(g_device, g_texImage, &subres, &layout);
 
-    if (layout.rowPitch == (VkDeviceSize)(width * 2)) {
+    if (g_texRowPitch == (VkDeviceSize)(width * 2)) {
         memcpy(texData, rgb565, (size_t)width * (size_t)height * 2);
     } else {
         const uint8_t *src = (const uint8_t *)rgb565;
         uint8_t *dst = (uint8_t *)texData;
         for (int32_t y = 0; y < height; y++) {
-            memcpy(dst + y * layout.rowPitch, src + y * width * 2, (size_t)width * 2);
+            memcpy(dst + y * g_texRowPitch, src + y * width * 2, (size_t)width * 2);
         }
     }
     vkUnmapMemory(g_device, g_texMem);

@@ -117,36 +117,30 @@ static void resetMrpNativeDrawState(void) {
 /** 将本次 dirty 的 RGB565 直接写入直通缓冲（无转换）。调用方已持 g_windowMutex。 */
 static void compositeMrpRgb565FromDraw(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32_t h, int32_t srcPitch,
     int32_t srcFromFullScreen) {
-    const int32_t bufW = SCREEN_WIDTH;
-    const int32_t bufH = SCREEN_HEIGHT;
-
     if (srcPitch <= 0) {
         srcPitch = w;
     }
 
     if (!g_rgb565CompositeReady) {
-        const size_t n = (size_t)SCREEN_WIDTH * (size_t)SCREEN_HEIGHT;
-        for (size_t i = 0; i < n; i++) {
-            g_mrpRgb565Composite[i] = 0;
-        }
+        memset(g_mrpRgb565Composite, 0, sizeof(g_mrpRgb565Composite));
         g_rgb565CompositeReady = 1;
     }
 
-    for (int32_t row = 0; row < h; row++) {
+    int32_t clipY0 = (y < 0) ? -y : 0;
+    int32_t clipY1 = (y + h > SCREEN_HEIGHT) ? (SCREEN_HEIGHT - y) : h;
+    int32_t clipX0 = (x < 0) ? -x : 0;
+    int32_t clipX1 = (x + w > SCREEN_WIDTH) ? (SCREEN_WIDTH - x) : w;
+
+    const size_t rowBytes = (size_t)(clipX1 - clipX0) * sizeof(uint16_t);
+
+    for (int32_t row = clipY0; row < clipY1; row++) {
         int32_t screenY = y + row;
-        if (screenY < 0 || screenY >= SCREEN_HEIGHT || screenY >= bufH) {
-            continue;
-        }
-        for (int32_t col = 0; col < w; col++) {
-            int32_t screenX = x + col;
-            if (screenX < 0 || screenX >= SCREEN_WIDTH || screenX >= bufW) {
-                continue;
-            }
-            int32_t srcX = srcFromFullScreen ? (x + col) : col;
-            int32_t srcY = srcFromFullScreen ? (y + row) : row;
-            g_mrpRgb565Composite[(size_t)screenY * (size_t)SCREEN_WIDTH + (size_t)screenX] =
-                bmp[(size_t)srcY * (size_t)srcPitch + (size_t)srcX];
-        }
+        int32_t srcY = srcFromFullScreen ? (y + row) : row;
+        int32_t srcX = srcFromFullScreen ? (x + clipX0) : clipX0;
+        memcpy(
+            &g_mrpRgb565Composite[(size_t)screenY * SCREEN_WIDTH + (size_t)(x + clipX0)],
+            &bmp[(size_t)srcY * (size_t)srcPitch + (size_t)srcX],
+            rowBytes);
     }
 }
 
@@ -191,16 +185,36 @@ static void flushCpuNativeWindowLocked(void) {
     const int32_t copyH = (bufH < SCREEN_HEIGHT) ? bufH : SCREEN_HEIGHT;
     const int32_t copyW = (bufW < SCREEN_WIDTH) ? bufW : SCREEN_WIDTH;
 
-    int32_t strideBytes = bufferHandle->stride;
-    if (strideBytes < copyW * (int32_t)sizeof(uint16_t)) {
-        strideBytes = copyW * (int32_t)sizeof(uint16_t);
-    }
-    const size_t rowStrideUint16 = (size_t)strideBytes / sizeof(uint16_t);
-    const size_t rowCopyBytes = (size_t)copyW * sizeof(uint16_t);
-    uint16_t *dst = (uint16_t *)mappedAddr;
-    for (int32_t sy = 0; sy < copyH; sy++) {
-        uint16_t *dstRow = dst + (size_t)sy * rowStrideUint16;
-        memcpy(dstRow, &g_mrpRgb565Composite[(size_t)sy * (size_t)SCREEN_WIDTH], rowCopyBytes);
+    if (bufferHandle->format == NATIVEBUFFER_PIXEL_FMT_RGB_565 ||
+        bufferHandle->format == NATIVEBUFFER_PIXEL_FMT_BGR_565) {
+        int32_t strideBytes = bufferHandle->stride;
+        if (strideBytes < copyW * (int32_t)sizeof(uint16_t)) {
+            strideBytes = copyW * (int32_t)sizeof(uint16_t);
+        }
+        const size_t rowStrideUint16 = (size_t)strideBytes / sizeof(uint16_t);
+        const size_t rowCopyBytes = (size_t)copyW * sizeof(uint16_t);
+        uint16_t *dst16 = (uint16_t *)mappedAddr;
+        for (int32_t sy = 0; sy < copyH; sy++) {
+            memcpy(dst16 + (size_t)sy * rowStrideUint16,
+                &g_mrpRgb565Composite[(size_t)sy * (size_t)SCREEN_WIDTH], rowCopyBytes);
+        }
+    } else {
+        int32_t strideBytes = bufferHandle->stride;
+        if (strideBytes < copyW * 4) {
+            strideBytes = copyW * 4;
+        }
+        uint8_t *dst8 = (uint8_t *)mappedAddr;
+        for (int32_t sy = 0; sy < copyH; sy++) {
+            uint32_t *dstRow = (uint32_t *)(dst8 + (size_t)sy * (size_t)strideBytes);
+            const uint16_t *srcRow = &g_mrpRgb565Composite[(size_t)sy * (size_t)SCREEN_WIDTH];
+            for (int32_t sx = 0; sx < copyW; sx++) {
+                uint16_t px = srcRow[sx];
+                uint32_t r = (uint32_t)((px >> 11) & 0x1F);
+                uint32_t g = (uint32_t)((px >> 5) & 0x3F);
+                uint32_t b = (uint32_t)(px & 0x1F);
+                dstRow[sx] = ((r << 19) | (g << 10) | (b << 3)) | 0xFF000000;
+            }
+        }
     }
 
     if (did_mmap) {
@@ -404,6 +418,11 @@ extern "C" void vmrp_harmony_on_edit_request_for_platform(const char *title, con
     napi_call_threadsafe_function(g_editRequestTsfn, p, napi_tsfn_nonblocking);
 }
 
+static void onSurfaceCreatedSetFormat(OHNativeWindow *w) {
+    OH_NativeWindow_NativeWindowHandleOpt(w, SET_BUFFER_GEOMETRY, SCREEN_WIDTH, SCREEN_HEIGHT);
+    OH_NativeWindow_NativeWindowHandleOpt(w, SET_FORMAT, NATIVEBUFFER_PIXEL_FMT_RGB_565);
+}
+
 static void OnSurfaceCreatedCB(OH_NativeXComponent *component, void *window) {
     (void)component;
     OHNativeWindow *w = static_cast<OHNativeWindow *>(window);
@@ -414,7 +433,7 @@ static void OnSurfaceCreatedCB(OH_NativeXComponent *component, void *window) {
     g_nativeWindow = w;
     pthread_mutex_unlock(&g_windowMutex);
 
-    OH_NativeWindow_NativeWindowHandleOpt(w, SET_BUFFER_GEOMETRY, SCREEN_WIDTH, SCREEN_HEIGHT);
+    onSurfaceCreatedSetFormat(w);
 
     mrp_renderer_init(w, SCREEN_WIDTH, SCREEN_HEIGHT);
 
@@ -429,7 +448,7 @@ static void OnSurfaceChangedCB(OH_NativeXComponent *component, void *window) {
     g_nativeWindow = w;
     pthread_mutex_unlock(&g_windowMutex);
 
-    OH_NativeWindow_NativeWindowHandleOpt(w, SET_BUFFER_GEOMETRY, SCREEN_WIDTH, SCREEN_HEIGHT);
+    onSurfaceCreatedSetFormat(w);
     mrp_renderer_init(w, SCREEN_WIDTH, SCREEN_HEIGHT);
 }
 
