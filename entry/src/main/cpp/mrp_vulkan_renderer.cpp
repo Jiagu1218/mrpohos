@@ -854,7 +854,10 @@ int mrp_vulkan_present_rgb565(const uint16_t *rgb565, int32_t width, int32_t hei
     uint32_t imgIdx = 0;
     VkResult res = vkAcquireNextImageKHR(g_device, g_swapchain, UINT64_MAX, VK_NULL_HANDLE, VK_NULL_HANDLE, &imgIdx);
     if (res != VK_SUCCESS) {
-        OH_LOG_WARN(LOG_APP, "vulkan: vkAcquireNextImageKHR failed %{public}d", (int)res);
+        static int s_acquireErr = 0;
+        if (s_acquireErr++ < 3) {
+            OH_LOG_WARN(LOG_APP, "vulkan: vkAcquireNextImageKHR failed %{public}d", (int)res);
+        }
         return -1;
     }
 
@@ -930,7 +933,10 @@ int mrp_vulkan_present_rgb565(const uint16_t *rgb565, int32_t width, int32_t hei
     si.pCommandBuffers = &g_cmdBuffers[imgIdx];
     res = vkQueueSubmit(g_queue, 1, &si, g_fences[imgIdx]);
     if (res != VK_SUCCESS) {
-        OH_LOG_WARN(LOG_APP, "vulkan: vkQueueSubmit failed %{public}d", (int)res);
+        static int s_submitErr = 0;
+        if (s_submitErr++ < 3) {
+            OH_LOG_WARN(LOG_APP, "vulkan: vkQueueSubmit failed %{public}d", (int)res);
+        }
         return -1;
     }
 
@@ -941,7 +947,10 @@ int mrp_vulkan_present_rgb565(const uint16_t *rgb565, int32_t width, int32_t hei
     pi.pImageIndices = &imgIdx;
     res = vkQueuePresentKHR(g_queue, &pi);
     if (res != VK_SUCCESS) {
-        OH_LOG_WARN(LOG_APP, "vulkan: vkQueuePresentKHR failed %{public}d", (int)res);
+        static int s_presentErr = 0;
+        if (s_presentErr++ < 3) {
+            OH_LOG_WARN(LOG_APP, "vulkan: vkQueuePresentKHR failed %{public}d", (int)res);
+        }
         return -1;
     }
 

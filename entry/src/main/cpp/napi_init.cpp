@@ -247,9 +247,17 @@ static void onDrawCallback(uint16_t *bmp, int32_t x, int32_t y, int32_t w, int32
             pthread_mutex_unlock(&g_windowMutex);
             return;
         }
-        OH_LOG_INFO(LOG_APP, ">>> 走 CPU 渲染路径（GL失败回退）<<<");
+        static int s_cpuFallbackWarned = 0;
+        if (!s_cpuFallbackWarned) {
+            s_cpuFallbackWarned = 1;
+            OH_LOG_WARN(LOG_APP, "GPU present failed, falling back to CPU path");
+        }
     } else {
-        OH_LOG_INFO(LOG_APP, ">>> 走 CPU 渲染路径（无GL）<<<");
+        static int s_cpuNoGlWarned = 0;
+        if (!s_cpuNoGlWarned) {
+            s_cpuNoGlWarned = 1;
+            OH_LOG_WARN(LOG_APP, "No GPU backend ready, using CPU path");
+        }
     }
     flushCpuNativeWindowLocked();
     pthread_mutex_unlock(&g_windowMutex);

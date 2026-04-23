@@ -575,27 +575,17 @@ int mrp_gles_renderer_is_ready(void) {
 }
 
 int mrp_gles_renderer_present_rgb565(const uint16_t *rgb565, int32_t width, int32_t height) {
-    static int s_log_first = 0;
-    if (s_log_first++ == 0) {
-        OH_LOG_INFO(LOG_APP, "GL DIAG: present_rgb565 called g_oh=%{public}p w=%{public}d h=%{public}d disabled=%{public}d",
-            (void*)g_oh_window, width, height, g_egl_disabled);
-    }
-
     if (!rgb565 || width != g_pending_w || height != g_pending_h) {
         return -1;
     }
     if (!g_oh_window || g_egl_disabled) {
-        OH_LOG_WARN(LOG_APP, "GL DIAG: early return g_oh=%{public}p disabled=%{public}d", (void*)g_oh_window, g_egl_disabled);
         return -1;
     }
 
     if (!g_egl_inited) {
-        OH_LOG_INFO(LOG_APP, "GL DIAG: init EGL...");
         if (!lazy_init_egl_gl()) {
-            OH_LOG_ERROR(LOG_APP, "GL DIAG: lazy_init FAILED");
             return -1;
         }
-        OH_LOG_INFO(LOG_APP, "GL DIAG: lazy_init OK");
     }
 
     if (g_dpy == EGL_NO_DISPLAY || g_surf == EGL_NO_SURFACE || g_ctx == EGL_NO_CONTEXT) {
@@ -615,7 +605,10 @@ int mrp_gles_renderer_present_rgb565(const uint16_t *rgb565, int32_t width, int3
     }
 
     if (!eglMakeCurrent(g_dpy, g_surf, g_surf, g_ctx)) {
-        OH_LOG_ERROR(LOG_APP, "present: eglMakeCurrent failed");
+        static int s_makeCurrentErr = 0;
+        if (s_makeCurrentErr++ < 3) {
+            OH_LOG_ERROR(LOG_APP, "present: eglMakeCurrent failed");
+        }
         return -1;
     }
 
