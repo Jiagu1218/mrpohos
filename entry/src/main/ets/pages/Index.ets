@@ -297,6 +297,10 @@ struct Index {
   @State rendererActiveMode: number = 0;
   @State pressedKey: number = -1;
   private rendererDialogController: CustomDialogController | null = null;
+
+  aboutToDisappear(): void {
+    this.initialized = false;
+  }
   private rendererDialogControllerReady: boolean = false;
   private keyRepeatTimer: number = -1;
 
@@ -905,7 +909,9 @@ struct Index {
     console.info('vmrp init result: ' + ret);
 
     if (ret === 0) {
-      let startRet = napi.start('dsm_gm.mrp', 'start.mr');
+      const params = router.getParams() as Record<string, string> | null;
+      const mrpFile = params?.mrp || 'dsm_gm.mrp';
+      let startRet = napi.start(mrpFile, 'start.mr');
       console.info('vmrp start result: ' + startRet);
     }
 
@@ -1006,6 +1012,11 @@ struct Index {
         napi.event(MR_MOUSE_UP, mx, my);
         break;
     }
+  }
+
+  onBackPress(): boolean {
+    router.back();
+    return true;
   }
 
   private async pickMrpIntoMythroad(): Promise<void> {

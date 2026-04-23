@@ -1,5 +1,6 @@
 {
   "src": [
+    "pages/MrpList",
     "pages/Index",
     "pages/OpenSourceNotices"
   ]
