@@ -399,6 +399,9 @@ extern "C" void vmrp_harmony_on_edit_request_for_platform(const char *title, con
 static void OnSurfaceCreatedCB(OH_NativeXComponent *component, void *window) {
     (void)component;
     OHNativeWindow *w = static_cast<OHNativeWindow *>(window);
+
+    OH_NativeWindow_NativeObjectReference(w);
+
     pthread_mutex_lock(&g_windowMutex);
     g_nativeWindow = w;
     pthread_mutex_unlock(&g_windowMutex);
@@ -424,12 +427,14 @@ static void OnSurfaceChangedCB(OH_NativeXComponent *component, void *window) {
 
 static void OnSurfaceDestroyedCB(OH_NativeXComponent *component, void *window) {
     (void)component;
-    (void)window;
+    OHNativeWindow *w = static_cast<OHNativeWindow *>(window);
     pthread_mutex_lock(&g_windowMutex);
     mrp_renderer_shutdown();
     g_nativeWindow = nullptr;
     g_rgb565CompositeReady = 0;
     pthread_mutex_unlock(&g_windowMutex);
+    OH_NativeWindow_NativeObjectUnreference(w);
+    OH_LOG_INFO(LOG_APP, "OnSurfaceDestroyed: window=%{public}p", (void *)w);
 }
 
 static void DispatchTouchEventCB(OH_NativeXComponent *component, void *window) {
